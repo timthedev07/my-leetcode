@@ -143,6 +143,14 @@ export const githubExecuteSyncInputSchema = githubPrepareSyncInputSchema.extend(
   confirmOverwrite: z.boolean()
 })
 
+export const editorPreferencesSchema = z.object({
+  vimMode: z.boolean()
+})
+
+export const clangFormatConfigSchema = z.object({
+  yaml: z.string().min(1).max(100_000)
+})
+
 export const ipcResultSchema = <T extends z.ZodType>(data: T) =>
   z.discriminatedUnion('ok', [
     z.object({ ok: z.literal(true), data }),

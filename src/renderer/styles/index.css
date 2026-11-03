@@ -311,6 +311,34 @@ textarea {
   font-weight: 600;
 }
 
+.vim-statusbar {
+  min-height: 24px;
+  flex: 0 0 auto;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  padding: 3px 10px;
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 18px;
+  letter-spacing: 0.04em;
+}
+
+.vim-statusbar > span:first-child {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.vim-statusbar span {
+  margin-right: 8px;
+}
+
+.vim-statusbar span:not(:first-child) {
+  color: var(--muted);
+  font-weight: 400;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

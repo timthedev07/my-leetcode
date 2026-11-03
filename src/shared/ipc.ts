@@ -33,6 +33,13 @@ export const IPC = {
   githubSettings: 'github:settings',
   githubSaveSettings: 'github:save-settings',
   githubPrepareSync: 'github:prepare-sync',
-  githubExecuteSync: 'github:execute-sync'
+  githubExecuteSync: 'github:execute-sync',
+  editorPreferencesGet: 'editor:preferences:get',
+  editorPreferencesSet: 'editor:preferences:set',
+  clangFormatGet: 'editor:clang-format:get',
+  clangFormatSave: 'editor:clang-format:save',
+  clangFormatReset: 'editor:clang-format:reset',
+  clangFormatImport: 'editor:clang-format:import',
+  clangFormatExport: 'editor:clang-format:export'
 } as const
 

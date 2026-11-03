@@ -32,7 +32,13 @@ export default defineConfig({
     resolve: {
       alias: {
         ...sharedAlias,
-        '@': resolve('src/renderer/src')
+        '@': resolve('src/renderer/src'),
+        'monaco-editor/esm/vs/editor/editor.api.js': resolve(
+          'node_modules/monaco-editor/esm/vs/editor/editor.api.js'
+        ),
+        'monaco-editor/esm/vs/editor/editor.api': resolve(
+          'node_modules/monaco-editor/esm/vs/editor/editor.api.js'
+        )
       }
     },
     plugins: [react(), tailwindcss()],

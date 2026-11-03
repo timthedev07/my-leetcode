@@ -1,5 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import {
+  AlignLeft,
   AlertCircle,
   Braces,
   Check,
@@ -36,6 +38,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { ProblemStatement } from '@/components/problem-statement'
 import type { CppEditorHandle } from '@/components/editor/cpp-editor'
 import { useDraftPersistence, type SaveStatus } from '@/hooks/use-draft-persistence'
+import { useClangFormatConfig } from '@/hooks/use-clang-format-config'
+import { useEditorPreferences } from '@/hooks/use-editor-preferences'
 import { useStoredState } from '@/hooks/use-stored-state'
 import { cn } from '@/lib/utils'
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
@@ -139,10 +143,14 @@ function LoadedWorkspace({
   const [judgeBusy, setJudgeBusy] = useState<'run' | 'submit' | null>(null)
   const [submitConfirmationOpen, setSubmitConfirmationOpen] = useState(false)
   const [pendingRestore, setPendingRestore] = useState<string | null>(null)
+  const [formatting, setFormatting] = useState(false)
+  const [formatError, setFormatError] = useState<string | null>(null)
   const judgeGeneration = useRef(0)
   const activeJudge = useRef<'run' | 'submit' | null>(null)
   const mounted = useRef(true)
   const persistence = useDraftPersistence(attempt, editorRef, () => undefined)
+  const editorPreferences = useEditorPreferences()
+  const clangFormatConfig = useClangFormatConfig()
   const flushDraft = persistence.flush
   const currentDraft = persistence.draft
 
@@ -219,6 +227,29 @@ function LoadedWorkspace({
     setJudgeBusy(null)
   }, [problem.titleSlug])
 
+  const formatDocument = useCallback(async (): Promise<void> => {
+    if (formatting || !editorRef.current) return
+    if (clangFormatConfig.isLoading) {
+      toast.error('The local formatting configuration is still loading.')
+      return
+    }
+    if (clangFormatConfig.error) {
+      toast.error(clangFormatConfig.error.message)
+      return
+    }
+    setFormatting(true)
+    setFormatError(null)
+    try {
+      await editorRef.current.formatDocument()
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'C++ formatting failed.'
+      setFormatError(message)
+      toast.error(message)
+    } finally {
+      if (mounted.current) setFormatting(false)
+    }
+  }, [clangFormatConfig.error, clangFormatConfig.isLoading, formatting])
+
   useEffect(() => {
     const onWorkspaceAction = (event: Event): void => {
       const action = (event as CustomEvent<string>).detail
@@ -228,10 +259,13 @@ function LoadedWorkspace({
       else if (action === 'save') void flushDraft()
       else if (action === 'run') void runCode()
       else if (action === 'submit') setSubmitConfirmationOpen(true)
+      else if (action === 'format') void formatDocument()
+      else if (action === 'undo') editorRef.current?.undo()
+      else if (action === 'redo') editorRef.current?.redo()
     }
     window.addEventListener('leetcode:workspace-action', onWorkspaceAction)
     return () => window.removeEventListener('leetcode:workspace-action', onWorkspaceAction)
-  }, [flushDraft, runCode])
+  }, [flushDraft, formatDocument, runCode])
 
   return (
     <div className="flex min-h-0 min-w-0 flex-col overflow-hidden">
@@ -252,6 +286,30 @@ function LoadedWorkspace({
                   saveStatus={persistence.status}
                   saveError={persistence.errorMessage}
                   tabFocusMode={tabFocusMode}
+                  vimEnabled={editorPreferences.preferences.vimMode}
+                  clangFormatYaml={
+                    clangFormatConfig.isLoading || clangFormatConfig.error
+                      ? null
+                      : clangFormatConfig.yaml
+                  }
+                  vimPreferenceLoading={editorPreferences.isLoading}
+                  onVimModeChange={(enabled) => {
+                    void editorPreferences.setVimMode(enabled).catch((error: unknown) => {
+                      toast.error(
+                        error instanceof Error
+                          ? error.message
+                          : 'The editor preference could not be saved.'
+                      )
+                    })
+                  }}
+                  formatting={formatting}
+                  formatUnavailableReason={
+                    clangFormatConfig.isLoading
+                      ? 'Loading formatting configuration.'
+                      : clangFormatConfig.error?.message ?? null
+                  }
+                  formatError={formatError}
+                  onFormat={() => void formatDocument()}
                   editorReady={editorReady}
                   onReady={() => setEditorReady(true)}
                   onDraftChange={persistence.markDirty}
@@ -335,6 +393,14 @@ function EditorPane({
   saveStatus,
   saveError,
   tabFocusMode,
+  vimEnabled,
+  clangFormatYaml,
+  vimPreferenceLoading,
+  onVimModeChange,
+  formatting,
+  formatUnavailableReason,
+  formatError,
+  onFormat,
   editorReady,
   onReady,
   onDraftChange,
@@ -353,6 +419,14 @@ function EditorPane({
   saveStatus: SaveStatus
   saveError: string | null
   tabFocusMode: boolean
+  vimEnabled: boolean
+  clangFormatYaml: string | null
+  vimPreferenceLoading: boolean
+  onVimModeChange: (enabled: boolean) => void
+  formatting: boolean
+  formatUnavailableReason: string | null
+  formatError: string | null
+  onFormat: () => void
   editorReady: boolean
   onReady: () => void
   onDraftChange: (value: string) => void
@@ -373,7 +447,63 @@ function EditorPane({
         </span>
         <span className="ml-2 text-[10px] text-muted">C++</span>
         <SaveIndicator status={saveStatus} error={saveError} />
+        <div
+          className="ml-3 flex items-center rounded border border-border bg-background/45 p-0.5"
+          role="group"
+          aria-label="Editor keybindings"
+        >
+          <button
+            type="button"
+            className={cn(
+              'h-6 rounded-[3px] px-2 text-[10px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              !vimEnabled ? 'bg-surface-hover text-foreground' : 'text-muted hover:text-foreground'
+            )}
+            aria-pressed={!vimEnabled}
+            disabled={vimPreferenceLoading}
+            onClick={() => {
+              if (vimEnabled) onVimModeChange(false)
+            }}
+          >
+            Standard
+          </button>
+          <button
+            type="button"
+            className={cn(
+              'h-6 rounded-[3px] px-2 font-mono text-[10px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              vimEnabled ? 'bg-accent/15 text-accent' : 'text-muted hover:text-foreground'
+            )}
+            aria-pressed={vimEnabled}
+            disabled={vimPreferenceLoading}
+            onClick={() => {
+              if (!vimEnabled) onVimModeChange(true)
+            }}
+          >
+            Vim
+          </button>
+        </div>
         <div className="ml-auto flex items-center gap-0.5">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-[11px]"
+                onClick={onFormat}
+                disabled={formatting || formatUnavailableReason !== null}
+                aria-label="Format C++ document"
+              >
+                {formatting ? (
+                  <Loader2 className="size-3.5 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+                ) : (
+                  <AlignLeft className="size-3.5" aria-hidden="true" />
+                )}
+                Format
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {formatUnavailableReason ?? formatError ?? 'Format C++ document (⌥⇧F)'}
+            </TooltipContent>
+          </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -418,6 +548,8 @@ function EditorPane({
             value={draft}
             initialState={attempt.editorState}
             tabFocusMode={tabFocusMode}
+            vimEnabled={vimEnabled}
+            clangFormatYaml={clangFormatYaml}
             onChange={onDraftChange}
             onBlur={onBlur}
             onSave={onSave}

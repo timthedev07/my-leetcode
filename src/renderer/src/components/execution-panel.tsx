@@ -440,6 +440,7 @@ function ReadOnlySubmissionCode({ submission }: { submission: SubmissionDetail }
       value={submission.code}
       initialState={null}
       tabFocusMode={false}
+      vimEnabled={false}
       readOnly
     />
   )

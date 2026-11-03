@@ -234,3 +234,37 @@ export type GitHubSettings = {
   configured: boolean
 }
 
+export type EditorPreferences = {
+  vimMode: boolean
+}
+
+export type ClangFormatPreset =
+  | 'LLVM'
+  | 'Google'
+  | 'Chromium'
+  | 'Microsoft'
+  | 'Mozilla'
+  | 'WebKit'
+  | 'GNU'
+  | 'Custom'
+
+export type ClangFormatConfig = {
+  yaml: string
+}
+
+export type ClangFormatValidation = {
+  valid: boolean
+  error: string | null
+  formattedPreview: string | null
+}
+
+export type ClangFormatImportResult = {
+  yaml: string
+  fileName: string
+} | null
+
+export type ClangFormatExportResult = {
+  saved: boolean
+  fileName: string | null
+}
+

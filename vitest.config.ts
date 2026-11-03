@@ -7,7 +7,13 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': resolve('src/renderer/src'),
-      '@shared': resolve('src/shared')
+      '@shared': resolve('src/shared'),
+      'monaco-editor/esm/vs/editor/editor.api.js': resolve(
+        'node_modules/monaco-editor/esm/vs/editor/editor.api.js'
+      ),
+      'monaco-editor/esm/vs/editor/editor.api': resolve(
+        'node_modules/monaco-editor/esm/vs/editor/editor.api.js'
+      )
     }
   },
   test: {

@@ -5,6 +5,8 @@ import { IPC } from '@shared/ipc'
 import {
   appInfoSchema,
   attemptSaveInputSchema,
+  clangFormatConfigSchema,
+  editorPreferencesSchema,
   externalUrlSchema,
   githubBranchesInputSchema,
   githubClientIdSchema,
@@ -30,6 +32,10 @@ import type {
   GitHubSettings,
   GitHubSyncOutcome,
   GitHubSyncPreview,
+  ClangFormatConfig,
+  ClangFormatExportResult,
+  ClangFormatImportResult,
+  EditorPreferences,
   JudgeResult,
   LeetCodeAuthStatus,
   OpenedAttempt,
@@ -49,6 +55,7 @@ import { GitHubAuthService } from './github/auth'
 import { RepositoryService, type FetchTransport } from './github/repository'
 import { GitHubSyncService } from './github/sync'
 import { TokenStore } from './github/token-store'
+import { ClangFormatConfigStore } from './editor/format-config'
 import { AttemptStore } from './storage/attempts'
 import { installContentSecurityPolicy } from './security/csp'
 import { AppError } from './security/app-error'
@@ -67,6 +74,7 @@ app.whenReady().then(() => {
 
   const problems = new LeetCodeProblemsService()
   const attempts = new AttemptStore(join(app.getPath('userData'), 'leetcode-desktop.sqlite'))
+  const formatConfigStore = new ClangFormatConfigStore(app.getPath('userData'))
   let accountKey = 'local'
   let judgeService: LeetCodeJudgeService | null = null
   let judgeSession: LeetCodeAuthenticatedSession | null = null
@@ -436,6 +444,45 @@ app.whenReady().then(() => {
         },
         input.confirmOverwrite
       )
+  )
+
+  registerValidatedHandler<undefined, EditorPreferences>(IPC.editorPreferencesGet, z.undefined(), () => ({
+    vimMode: attempts.getSetting('editor.vimMode') === 'true'
+  }))
+
+  registerValidatedHandler<z.infer<typeof editorPreferencesSchema>, EditorPreferences>(
+    IPC.editorPreferencesSet,
+    editorPreferencesSchema,
+    (input) => {
+      attempts.setSetting('editor.vimMode', input.vimMode ? 'true' : 'false')
+      return input
+    }
+  )
+
+  registerValidatedHandler<undefined, ClangFormatConfig>(IPC.clangFormatGet, z.undefined(), () =>
+    formatConfigStore.read()
+  )
+
+  registerValidatedHandler<z.infer<typeof clangFormatConfigSchema>, ClangFormatConfig>(
+    IPC.clangFormatSave,
+    clangFormatConfigSchema,
+    (input) => formatConfigStore.save(input.yaml)
+  )
+
+  registerValidatedHandler<undefined, ClangFormatConfig>(IPC.clangFormatReset, z.undefined(), () =>
+    formatConfigStore.reset()
+  )
+
+  registerValidatedHandler<undefined, ClangFormatImportResult>(
+    IPC.clangFormatImport,
+    z.undefined(),
+    () => formatConfigStore.importConfig()
+  )
+
+  registerValidatedHandler<z.infer<typeof clangFormatConfigSchema>, ClangFormatExportResult>(
+    IPC.clangFormatExport,
+    clangFormatConfigSchema,
+    (input) => formatConfigStore.exportConfig(input.yaml)
   )
 
   createMainWindow()

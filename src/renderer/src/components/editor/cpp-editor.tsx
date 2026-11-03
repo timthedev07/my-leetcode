@@ -6,8 +6,12 @@ import {
 } from 'react'
 import * as monaco from 'monaco-editor/editor/editor.api.js'
 import 'monaco-editor/languages/definitions/cpp/register.js'
+import 'monaco-editor/editor/contrib/format/browser/formatActions.js'
 import EditorWorker from 'monaco-editor/editor/editor.worker.js?worker'
+import { initVimMode, type VimAdapterInstance } from 'monaco-vim'
 import type { PersistedEditorState } from '@shared/types'
+import { clangFormat } from '@/editor/clang-format-client'
+import { createSafeFormattingEdits } from '@/editor/format-model'
 
 type MonacoEnvironmentShape = {
   getWorker: () => Worker
@@ -21,6 +25,9 @@ export type CppEditorHandle = {
   focus: () => void
   getEditorState: () => PersistedEditorState | null
   revealLine: (lineNumber: number) => void
+  formatDocument: () => Promise<void>
+  undo: () => void
+  redo: () => void
 }
 
 type CppEditorProps = {
@@ -29,12 +36,15 @@ type CppEditorProps = {
   value: string
   initialState: PersistedEditorState | null
   tabFocusMode: boolean
+  vimEnabled: boolean
+  clangFormatYaml?: string | null
   readOnly?: boolean
   onChange?: (value: string) => void
   onBlur?: () => void
   onSave?: () => void
   onRun?: () => void
   onSubmit?: () => void
+  onVimModeChange?: (mode: string) => void
   onReady?: () => void
 }
 
@@ -45,12 +55,15 @@ export const CppEditor = forwardRef<CppEditorHandle, CppEditorProps>(function Cp
     value,
     initialState,
     tabFocusMode,
+    vimEnabled,
+    clangFormatYaml,
     readOnly = false,
     onChange,
     onBlur,
     onSave,
     onRun,
     onSubmit,
+    onVimModeChange,
     onReady
   },
   forwardedRef
@@ -58,11 +71,15 @@ export const CppEditor = forwardRef<CppEditorHandle, CppEditorProps>(function Cp
   const hostRef = useRef<HTMLDivElement>(null)
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null)
   const modelRef = useRef<monaco.editor.ITextModel | null>(null)
+  const vimStatusRef = useRef<HTMLDivElement>(null)
+  const vimAdapterRef = useRef<VimAdapterInstance | null>(null)
   const onChangeRef = useRef(onChange)
   const onBlurRef = useRef(onBlur)
   const onSaveRef = useRef(onSave)
   const onRunRef = useRef(onRun)
   const onSubmitRef = useRef(onSubmit)
+  const clangFormatRef = useRef<string | null>(clangFormatYaml ?? null)
+  const onVimModeChangeRef = useRef(onVimModeChange)
   const onReadyRef = useRef(onReady)
   const initialEditorPropsRef = useRef({
     modelKey,
@@ -78,8 +95,13 @@ export const CppEditor = forwardRef<CppEditorHandle, CppEditorProps>(function Cp
     onSaveRef.current = onSave
     onRunRef.current = onRun
     onSubmitRef.current = onSubmit
+    onVimModeChangeRef.current = onVimModeChange
     onReadyRef.current = onReady
-  }, [onBlur, onChange, onReady, onRun, onSave, onSubmit])
+  }, [onBlur, onChange, onReady, onRun, onSave, onSubmit, onVimModeChange])
+
+  useEffect(() => {
+    clangFormatRef.current = clangFormatYaml ?? null
+  }, [clangFormatYaml])
 
   useEffect(() => {
     const host = hostRef.current
@@ -148,6 +170,24 @@ export const CppEditor = forwardRef<CppEditorHandle, CppEditorProps>(function Cp
       keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.Enter],
       run: () => onSubmitRef.current?.()
     })
+    const formatAction = editor.addAction({
+      id: 'leetcode-desktop.format',
+      label: 'Format C++ document',
+      keybindings: [monaco.KeyMod.Alt | monaco.KeyMod.Shift | monaco.KeyCode.KeyF],
+      run: () => {
+        void editor.getAction('editor.action.formatDocument')?.run()
+      }
+    })
+    const formatProvider = monaco.languages.registerDocumentFormattingEditProvider('cpp', {
+      displayName: 'clang-format',
+      provideDocumentFormattingEdits: async (model) => {
+        const style = clangFormatRef.current
+        if (!style) throw new Error('The local C++ formatting configuration is unavailable.')
+        return createSafeFormattingEdits(model, style, (source, configuration) =>
+          clangFormat.format(source, configuration)
+        )
+      }
+    })
 
     requestAnimationFrame(() => {
       restoreState(editor, initial.initialState)
@@ -158,14 +198,53 @@ export const CppEditor = forwardRef<CppEditorHandle, CppEditorProps>(function Cp
       saveAction.dispose()
       runAction.dispose()
       submitAction.dispose()
+      formatAction.dispose()
+      formatProvider.dispose()
       changeSubscription.dispose()
       blurSubscription.dispose()
       editor.dispose()
+      vimAdapterRef.current = null
       modelRef.current?.dispose()
       modelRef.current = null
       editorRef.current = null
     }
   }, [])
+
+  useEffect(() => {
+    const editor = editorRef.current
+    const status = vimStatusRef.current
+    if (!editor || !status || !vimEnabled || readOnly) return
+
+    const shortcutGuard = editor.onKeyDown((event) => {
+      const keyboardEvent = event.browserEvent
+      const key = keyboardEvent.key.toLowerCase()
+      const applicationChord =
+        (keyboardEvent.metaKey || keyboardEvent.ctrlKey) &&
+        ['enter', 's'].includes(key)
+      if (applicationChord || (keyboardEvent.altKey && keyboardEvent.shiftKey && key === 'f')) {
+        event.preventDefault()
+      }
+    })
+    const adapter = initVimMode(editor, status)
+    vimAdapterRef.current = adapter
+    const onModeChange = (event: { mode: string; subMode?: string }): void => {
+      status.dataset.vimMode = event.mode
+      onVimModeChangeRef.current?.(event.subMode ? `${event.mode}:${event.subMode}` : event.mode)
+    }
+    adapter.on('vim-mode-change', onModeChange)
+    editor.focus()
+
+    return () => {
+      adapter.off('vim-mode-change', onModeChange)
+      adapter.dispose()
+      shortcutGuard.dispose()
+      vimAdapterRef.current = null
+      status.replaceChildren()
+      status.removeAttribute('data-vim-mode')
+      status.style.removeProperty('display')
+      editor.focus()
+    }
+  }, [readOnly, vimEnabled])
 
   useEffect(() => {
     const editor = editorRef.current
@@ -221,19 +300,39 @@ export const CppEditor = forwardRef<CppEditorHandle, CppEditorProps>(function Cp
           scrollTop: editor.getScrollTop()
         }
       },
-      revealLine: (lineNumber) => editorRef.current?.revealLineInCenter(lineNumber)
+      revealLine: (lineNumber) => editorRef.current?.revealLineInCenter(lineNumber),
+      formatDocument: async () => {
+        const action = editorRef.current?.getAction('editor.action.formatDocument')
+        if (!action) throw new Error('Monaco document formatting is unavailable.')
+        await action.run()
+      },
+      undo: () => {
+        void editorRef.current?.getModel()?.undo()
+      },
+      redo: () => {
+        void editorRef.current?.getModel()?.redo()
+      }
     }),
     []
   )
 
   return (
-    <div
-      ref={hostRef}
-      className="h-full min-h-0 w-full"
-      data-monaco-editor=""
-      aria-label="C++ code editor"
-      role="region"
-    />
+    <div className="flex h-full min-h-0 flex-col">
+      <div
+        ref={hostRef}
+        className="min-h-0 flex-1"
+        data-monaco-editor=""
+        aria-label="C++ code editor"
+        role="region"
+      />
+      <div
+        ref={vimStatusRef}
+        className={vimEnabled && !readOnly ? 'vim-statusbar' : 'hidden'}
+        role="status"
+        aria-live="polite"
+        aria-label="Vim mode"
+      />
+    </div>
   )
 })
 

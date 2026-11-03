@@ -9,4 +9,14 @@ export const ATTEMPT_RETENTION_MS = ATTEMPT_RETENTION_DAYS * 24 * 60 * 60 * 1000
 export const ATTEMPT_CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000
 export const SEARCH_DEBOUNCE_MS = 300
 export const DRAFT_SAVE_DEBOUNCE_MS = 500
+export const DEFAULT_CLANG_FORMAT_YAML = `---
+BasedOnStyle: LLVM
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ColumnLimit: 100
+BreakBeforeBraces: Attach
+PointerAlignment: Left
+SortIncludes: Never
+`
 

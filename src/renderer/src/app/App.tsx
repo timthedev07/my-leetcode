@@ -69,7 +69,10 @@ export function App(): React.JSX.Element {
     focusPanel: () => dispatchWorkspaceAction('panel'),
     save: () => dispatchWorkspaceAction('save'),
     run: () => dispatchWorkspaceAction('run'),
-    submit: () => dispatchWorkspaceAction('submit')
+    submit: () => dispatchWorkspaceAction('submit'),
+    format: () => dispatchWorkspaceAction('format'),
+    undo: () => dispatchWorkspaceAction('undo'),
+    redo: () => dispatchWorkspaceAction('redo')
   })
 
   const selectProblem = useCallback(async (problem: ProblemSummary): Promise<void> => {
@@ -238,7 +241,11 @@ export function App(): React.JSX.Element {
   )
 }
 
-function dispatchWorkspaceAction(action: 'description' | 'editor' | 'panel' | 'save' | 'run' | 'submit'): void {
+function dispatchWorkspaceAction(
+  action: 'description' | 'editor' | 'panel' | 'save' | 'run' | 'submit' | 'format'
+    | 'undo'
+    | 'redo'
+): void {
   window.dispatchEvent(new CustomEvent('leetcode:workspace-action', { detail: action }))
 }
 

@@ -2,6 +2,10 @@ import { contextBridge, ipcRenderer } from 'electron'
 import { IPC } from '@shared/ipc'
 import type {
   AppInfo,
+  ClangFormatConfig,
+  ClangFormatExportResult,
+  ClangFormatImportResult,
+  EditorPreferences,
   GitHubAuthStatus,
   GitHubBranch,
   GitHubDeviceAuthorisation,
@@ -134,7 +138,21 @@ const desktopApi = {
       frontendProblemId,
       difficulty,
       confirmOverwrite
-    })
+    }),
+  getEditorPreferences: (): Promise<IpcResult<EditorPreferences>> =>
+    ipcRenderer.invoke(IPC.editorPreferencesGet, undefined),
+  setEditorPreferences: (preferences: EditorPreferences): Promise<IpcResult<EditorPreferences>> =>
+    ipcRenderer.invoke(IPC.editorPreferencesSet, preferences),
+  getClangFormatConfig: (): Promise<IpcResult<ClangFormatConfig>> =>
+    ipcRenderer.invoke(IPC.clangFormatGet, undefined),
+  saveClangFormatConfig: (yaml: string): Promise<IpcResult<ClangFormatConfig>> =>
+    ipcRenderer.invoke(IPC.clangFormatSave, { yaml }),
+  resetClangFormatConfig: (): Promise<IpcResult<ClangFormatConfig>> =>
+    ipcRenderer.invoke(IPC.clangFormatReset, undefined),
+  importClangFormatConfig: (): Promise<IpcResult<ClangFormatImportResult>> =>
+    ipcRenderer.invoke(IPC.clangFormatImport, undefined),
+  exportClangFormatConfig: (yaml: string): Promise<IpcResult<ClangFormatExportResult>> =>
+    ipcRenderer.invoke(IPC.clangFormatExport, { yaml })
 }
 
 export type DesktopApi = typeof desktopApi
