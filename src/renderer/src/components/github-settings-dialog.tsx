@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  Braces,
   CircleAlert,
   ExternalLink,
   Github,
@@ -9,6 +10,7 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { FormattingSettingsPanel } from '@/components/formatting-settings-panel'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -19,6 +21,7 @@ import {
   DialogTitle
 } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useGitHubAuth } from '@/hooks/use-github-auth'
 
 type GitHubSettingsDialogProps = {
@@ -192,15 +195,30 @@ export function GitHubSettingsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl">
+      <DialogContent className="max-w-4xl">
         <DialogHeader>
-          <DialogTitle>GitHub synchronisation</DialogTitle>
-          <DialogDescription>
-            Connect with a public OAuth client ID, then confirm a writable repository and branch.
-          </DialogDescription>
+          <DialogTitle>Settings</DialogTitle>
+          <DialogDescription>Manage C++ formatting and GitHub synchronisation.</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 border-y border-border py-4">
+        <Tabs defaultValue="formatting">
+          <TabsList className="w-fit">
+            <TabsTrigger value="formatting">
+              <Braces className="mr-1.5 size-3.5" aria-hidden="true" />
+              Formatting
+            </TabsTrigger>
+            <TabsTrigger value="github">
+              <Github className="mr-1.5 size-3.5" aria-hidden="true" />
+              GitHub
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="formatting" className="mt-4">
+            <FormattingSettingsPanel />
+          </TabsContent>
+
+          <TabsContent value="github" className="mt-4">
+            <div className="space-y-4 border-y border-border py-4">
           <div className="flex items-center gap-3">
             <Github className="size-4 text-muted" aria-hidden="true" />
             <div>
@@ -379,14 +397,17 @@ export function GitHubSettingsDialog({
               </div>
             </div>
           ) : null}
-        </div>
+            </div>
 
-        <div className="flex items-start gap-2.5 text-xs leading-5 text-muted">
-          <ShieldCheck className="mt-0.5 size-4 shrink-0 text-accent/80" aria-hidden="true" />
-          <p>
-            Only the public client ID is stored in settings. GitHub access tokens are encrypted with macOS secret storage.
-          </p>
-        </div>
+            <div className="mt-4 flex items-start gap-2.5 text-xs leading-5 text-muted">
+              <ShieldCheck className="mt-0.5 size-4 shrink-0 text-accent/80" aria-hidden="true" />
+              <p>
+                Only the public client ID is stored in settings. GitHub access tokens are encrypted
+                with macOS secret storage.
+              </p>
+            </div>
+          </TabsContent>
+        </Tabs>
 
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
