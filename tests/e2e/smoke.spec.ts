@@ -10,7 +10,13 @@ test('the secure Electron shell launches', async () => {
     const page = await application.firstWindow()
     await expect(page).toHaveTitle('LeetCode Desktop')
     await expect(page.getByRole('heading', { name: 'No problem open' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Search problems' }).first()).toBeVisible()
+    const searchTrigger = page.getByRole('button', { name: 'Search problems' }).first()
+    await expect(searchTrigger).toBeVisible()
+    await searchTrigger.focus()
+    await page.keyboard.press('Meta+k')
+    await expect(page.getByRole('combobox')).toBeFocused()
+    await page.keyboard.press('Escape')
+    await expect(searchTrigger).toBeFocused()
 
     const isolation = await page.evaluate(() => ({
       hasDesktopBridge: typeof (globalThis as typeof globalThis & { desktop?: unknown }).desktop === 'object',

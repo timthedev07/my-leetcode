@@ -15,10 +15,10 @@ extraResources:
     to: playwright
     filter:
       - '**/*'
-nativeRebuilder: true
 npmRebuild: true
 mac:
   category: public.app-category.developer-tools
+  icon: build/icon.png
   target:
     - target: dmg
       arch:
