@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { CircleAlert } from 'lucide-react'
+import { BookOpen, CircleAlert, Settings2 } from 'lucide-react'
 import { useState } from 'react'
 import type { ProblemSummary } from '@shared/types'
 import { SEARCH_DEBOUNCE_MS } from '@shared/constants'
@@ -19,9 +19,17 @@ type SearchPaletteProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSelect: (problem: ProblemSummary) => void
+  onOpenDocs: () => void
+  onOpenSettings: () => void
 }
 
-export function SearchPalette({ open, onOpenChange, onSelect }: SearchPaletteProps): React.JSX.Element {
+export function SearchPalette({
+  open,
+  onOpenChange,
+  onSelect,
+  onOpenDocs,
+  onOpenSettings
+}: SearchPaletteProps): React.JSX.Element {
   const [query, setQuery] = useState('')
   const debouncedQuery = useDebouncedValue(query, SEARCH_DEBOUNCE_MS)
 
@@ -54,13 +62,37 @@ export function SearchPalette({ open, onOpenChange, onSelect }: SearchPalettePro
       />
       <CommandList>
         {query.trim().length < 2 ? (
-          <div className="px-3 py-9 text-center">
-            <p className="text-sm text-muted">Enter at least two characters.</p>
-            <p className="mt-2 text-xs text-muted/70">
-              Try <span className="font-mono text-foreground/80">209</span> or{' '}
-              <span className="font-mono text-foreground/80">sliding window</span>.
-            </p>
-          </div>
+          <>
+            <CommandGroup heading="Go to">
+              <CommandItem
+                value="Documentation docs"
+                onSelect={() => {
+                  onOpenChange(false)
+                  onOpenDocs()
+                }}
+              >
+                <BookOpen className="size-4 text-muted" aria-hidden="true" />
+                Documentation
+              </CommandItem>
+              <CommandItem
+                value="Settings GitHub connections"
+                onSelect={() => {
+                  onOpenChange(false)
+                  onOpenSettings()
+                }}
+              >
+                <Settings2 className="size-4 text-muted" aria-hidden="true" />
+                Settings
+              </CommandItem>
+            </CommandGroup>
+            <div className="px-3 py-6 text-center">
+              <p className="text-sm text-muted">Search by problem number, title, slug or topic.</p>
+              <p className="mt-2 text-xs text-muted/70">
+                Try <span className="font-mono text-foreground/80">209</span> or{' '}
+                <span className="font-mono text-foreground/80">sliding window</span>.
+              </p>
+            </div>
+          </>
         ) : search.isPending ? (
           <CommandLoading>Searching LeetCode</CommandLoading>
         ) : search.isError ? (

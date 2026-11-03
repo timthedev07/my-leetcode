@@ -1,0 +1,51 @@
+# Development
+
+## Prerequisites
+
+- Node.js 22.12 or newer
+- Corepack
+- macOS arm64 for the packaged target
+
+## Commands
+
+```sh
+corepack enable
+yarn install
+yarn dev
+```
+
+Verification:
+
+```sh
+yarn typecheck
+yarn lint
+yarn test
+yarn build
+yarn test:e2e
+```
+
+Packaging:
+
+```sh
+yarn package:dir
+yarn package
+```
+
+`yarn package` installs Playwright Chromium into local resources before producing arm64 DMG and ZIP artefacts.
+
+## Tests
+
+- Unit tests cover search ranking, retention boundaries, autosave debounce, judge state, accepted-submission selection, GitHub commit construction, duplicate detection, token encryption and repository permissions.
+- Integration tests cover GraphQL normalisation, auth state transitions, judge polling/cancellation and GitHub REST boundaries.
+- Accessibility tests cover keyboard registries and focusable search interactions.
+- Playwright Electron tests launch the built app and assert the sandbox boundary.
+
+Live integrations are opt-in and require user-owned credentials. Automated fixtures contain no live tokens, cookies or private source.
+
+## Packaging notes
+
+- `better-sqlite3` is rebuilt for Electron’s ABI.
+- Playwright Chromium is copied from `resources/playwright` to application resources.
+- The build is ad-hoc unsigned unless a Developer ID application identity and notarisation credentials are configured.
+- No automatic updater is enabled.
+

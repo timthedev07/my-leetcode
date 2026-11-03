@@ -1,6 +1,8 @@
 export const IPC = {
   appInfo: 'app:info',
   appOpenExternal: 'app:open-external',
+  appPrepareQuit: 'app:prepare-quit',
+  appFlushComplete: 'app:flush-complete',
   leetcodeSearch: 'leetcode:search',
   leetcodeProblem: 'leetcode:problem',
   attemptOpen: 'attempt:open',

@@ -1,9 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
-import { History, ShieldCheck } from 'lucide-react'
-import { useCallback, useRef, useState } from 'react'
+import { History } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { OpenedAttempt, ProblemSummary, RecentAttempt } from '@shared/types'
 import { AppHeader } from '@/components/app-header'
 import { AccountsDialog } from '@/components/accounts-dialog'
+import { DocsPage } from '@/components/docs-page'
 import { EmptyWorkspace } from '@/components/empty-workspace'
 import { GitHubSettingsDialog } from '@/components/github-settings-dialog'
 import { ProblemWorkspace } from '@/components/problem-workspace'
@@ -26,6 +27,7 @@ type UtilityView = 'docs' | 'settings' | null
 
 export function App(): React.JSX.Element {
   const [sidebarCollapsed, setSidebarCollapsed] = useStoredState('layout:sidebar-collapsed', false)
+  const [narrowWindow, setNarrowWindow] = useState(() => window.matchMedia('(max-width: 1120px)').matches)
   const [searchOpen, setSearchOpen] = useState(false)
   const [recentOpen, setRecentOpen] = useState(false)
   const [accountsOpen, setAccountsOpen] = useState(false)
@@ -33,17 +35,23 @@ export function App(): React.JSX.Element {
   const [selectedProblem, setSelectedProblem] = useState<ProblemSummary | null>(null)
   const [activeAttempt, setActiveAttempt] = useState<OpenedAttempt | null>(null)
   const flushRef = useRef<(() => Promise<void>) | null>(null)
+  const searchTriggerRef = useRef<HTMLButtonElement>(null)
   const leetcode = useLeetCodeAuth()
-  const appInfo = useQuery({
-    queryKey: ['app-info'],
-    queryFn: async () => {
-      const result = await window.desktop.getAppInfo()
-      if (!result.ok) throw new Error(result.error.message)
-      return result.data
-    },
-    staleTime: Infinity
-  })
+  const sidebarHidden = sidebarCollapsed || narrowWindow
 
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 1120px)')
+    const onChange = (event: MediaQueryListEvent): void => setNarrowWindow(event.matches)
+    media.addEventListener('change', onChange)
+    return () => media.removeEventListener('change', onChange)
+  }, [])
+
+  useEffect(() => {
+    return window.desktop.onPrepareQuit(async () => {
+      await flushRef.current?.()
+      window.desktop.completeQuitFlush()
+    })
+  }, [])
   const recent = useQuery({
     queryKey: ['recent-attempts'],
     queryFn: async () => {
@@ -92,38 +100,60 @@ export function App(): React.JSX.Element {
     setRecentOpen(false)
   }
 
+  const openDocs = (): void => {
+    void (async () => {
+      await flushRef.current?.()
+      setUtilityView('docs')
+    })()
+  }
+
   return (
     <TooltipProvider delayDuration={350}>
       <div className="grid h-screen min-h-[600px] grid-rows-[48px_minmax(0,1fr)_32px] overflow-hidden bg-background text-foreground">
         <AppHeader
-          sidebarCollapsed={sidebarCollapsed}
-          onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
+          sidebarCollapsed={sidebarHidden}
+          onToggleSidebar={() => {
+            if (!narrowWindow) setSidebarCollapsed(!sidebarCollapsed)
+          }}
           onOpenSearch={() => setSearchOpen(true)}
           onOpenAccounts={() => setAccountsOpen(true)}
+          searchButtonRef={searchTriggerRef}
+          showSidebarToggle={!narrowWindow}
         />
 
         <main
           className="grid min-h-0 overflow-hidden"
-          style={{ gridTemplateColumns: sidebarCollapsed ? 'minmax(0,1fr)' : '232px minmax(0,1fr)' }}
+          style={{
+            gridTemplateColumns:
+              utilityView === 'docs' || sidebarHidden
+                ? 'minmax(0,1fr)'
+                : '232px minmax(0,1fr)'
+          }}
         >
-          <RecentSidebar
-            attempts={recent.data?.attempts ?? []}
-            activeProblemId={activeAttempt?.attempt.problemId ?? selectedProblem?.frontendId ?? null}
-            collapsed={sidebarCollapsed}
-            onSelect={selectRecent}
-            onOpenRecent={() => setRecentOpen(true)}
-          />
-
-          {selectedProblem ? (
-            <ProblemWorkspace
-              problemSummary={selectedProblem}
-              onLoaded={handleLoaded}
-              onFlushReady={handleFlushReady}
-              onSearch={() => setSearchOpen(true)}
-              leetcodeConnected={leetcode.status.state === 'connected'}
-            />
+          {utilityView === 'docs' ? (
+            <DocsPage onClose={() => setUtilityView(null)} />
           ) : (
-            <EmptyWorkspace onSearch={() => setSearchOpen(true)} />
+            <>
+              <RecentSidebar
+                attempts={recent.data?.attempts ?? []}
+                activeProblemId={activeAttempt?.attempt.problemId ?? selectedProblem?.frontendId ?? null}
+                collapsed={sidebarHidden}
+                onSelect={selectRecent}
+                onOpenRecent={() => setRecentOpen(true)}
+              />
+
+              {selectedProblem ? (
+                <ProblemWorkspace
+                  problemSummary={selectedProblem}
+                  onLoaded={handleLoaded}
+                  onFlushReady={handleFlushReady}
+                  onSearch={() => setSearchOpen(true)}
+                  leetcodeConnected={leetcode.status.state === 'connected'}
+                />
+              ) : (
+                <EmptyWorkspace onSearch={() => setSearchOpen(true)} />
+              )}
+            </>
           )}
         </main>
 
@@ -138,14 +168,21 @@ export function App(): React.JSX.Element {
                   : 'LeetCode disconnected'
           }
           connected={leetcode.status.state === 'connected'}
-          onDocs={() => setUtilityView('docs')}
+          onDocs={openDocs}
           onSettings={() => setUtilityView('settings')}
         />
 
         <SearchPalette
           open={searchOpen}
-          onOpenChange={setSearchOpen}
+          onOpenChange={(open) => {
+            setSearchOpen(open)
+            if (!open) {
+              window.requestAnimationFrame(() => searchTriggerRef.current?.focus())
+            }
+          }}
           onSelect={(problem) => void selectProblem(problem)}
+          onOpenDocs={openDocs}
+          onOpenSettings={() => setUtilityView('settings')}
         />
 
         <Dialog open={recentOpen} onOpenChange={setRecentOpen}>
@@ -196,21 +233,6 @@ export function App(): React.JSX.Element {
           onOpenChange={(open) => !open && setUtilityView(null)}
         />
 
-        <Dialog open={utilityView === 'docs'} onOpenChange={(open) => !open && setUtilityView(null)}>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Documentation</DialogTitle>
-              <DialogDescription>Bundled setup and troubleshooting guidance.</DialogDescription>
-            </DialogHeader>
-            <div className="flex items-start gap-3 border-y border-border py-5">
-              <ShieldCheck className="mt-0.5 size-4 shrink-0 text-accent" aria-hidden="true" />
-              <p className="text-xs leading-5 text-muted">
-                Credentials are stored outside the rendered interface. Application version{' '}
-                {appInfo.data?.version ?? '…'} on {appInfo.data?.platform ?? 'this platform'}.
-              </p>
-            </div>
-          </DialogContent>
-        </Dialog>
       </div>
     </TooltipProvider>
   )

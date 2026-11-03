@@ -11,7 +11,7 @@ The authoritative product specification is [IMPLEMENTATION_PLAN.md](IMPLEMENTATI
 - [x] Phase 4: Live LeetCode discovery and C++ starter templates.
 - [x] Phase 5: LeetCode login, Run, Submit and submission history.
 - [x] Phase 6: GitHub device login and accepted-C++ synchronisation.
-- [ ] Phase 7: Documentation, packaging, visual QA and release validation.
+- [x] Phase 7: Documentation, packaging, visual QA and release validation.
 
 ## External gates
 
@@ -22,9 +22,20 @@ The authoritative product specification is [IMPLEMENTATION_PLAN.md](IMPLEMENTATI
 
 ## Verification gates
 
-- [ ] Typecheck, lint and focused automated tests.
-- [ ] Keyboard and accessibility review.
-- [ ] Visual review of the rendered application.
-- [ ] Development build and packaged application smoke test.
-- [ ] Security review of IPC, credentials, navigation and rendered problem HTML.
+- [x] Typecheck, lint and the complete local test suite.
+- [x] Keyboard and accessibility review, including focus restoration.
+- [x] Visual review of the live problem workspace, docs, dialogs and narrow layout.
+- [x] Development build and packaged arm64 application smoke test.
+- [x] Security review of IPC, credentials, navigation and rendered problem HTML.
+
+## Verification evidence
+
+- `yarn typecheck`: passed.
+- `yarn lint`: passed.
+- `yarn test`: 12 files and 66 tests passed.
+- `yarn test:e2e`: development and packaged-arm64 launch tests passed.
+- `yarn package`: produced unsigned arm64 DMG and ZIP artefacts.
+- The DMG checksum verified and the app launched directly from the mounted distribution image.
+- Live public LeetCode search and problem detail were verified.
+- Authenticated LeetCode judging and GitHub writing remain gated on user-owned accounts and credentials.
 

@@ -196,7 +196,7 @@ export function GitHubSettingsDialog({
         <DialogHeader>
           <DialogTitle>GitHub synchronisation</DialogTitle>
           <DialogDescription>
-            Connect with a public OAuth client ID, then confirm a writeable repository and branch.
+            Connect with a public OAuth client ID, then confirm a writable repository and branch.
           </DialogDescription>
         </DialogHeader>
 

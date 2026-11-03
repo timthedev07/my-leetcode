@@ -1,6 +1,6 @@
 # LeetCode Desktop — Full Electron Implementation Plan
 
-**Status:** Implementation specification; no application code has been written or committed by this plan.  
+**Status:** Implemented; live-account integration gates, signing status and verification evidence are tracked in `IMPLEMENTATION_CHECKLIST.md`.
 **Platform priority:** macOS (Apple Silicon / M2); keep the architecture portable to Windows and Linux.  
 **Language:** British English in all product copy and documentation.  
 **Primary requirement:** A polished, keyboard-first, dark-only LeetCode desktop client with a C++ Monaco editor, direct GraphQL access, authenticated execution/submission where permitted, persistent recent attempts, and explicit GitHub synchronisation of accepted code.

@@ -48,7 +48,12 @@ function CommandDialog({
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </VisuallyHidden.Root>
-        <Command className="[&_[cmdk-input-wrapper]]:border-0">{children}</Command>
+        <Command
+          label={typeof title === 'string' ? title : 'Search'}
+          className="[&_[cmdk-input-wrapper]]:border-0"
+        >
+          {children}
+        </Command>
       </DialogContent>
     </Dialog>
   )

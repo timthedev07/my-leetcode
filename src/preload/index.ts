@@ -32,6 +32,14 @@ type ProblemSearchResult = {
 const desktopApi = {
   getAppInfo: (): Promise<IpcResult<AppInfo>> => ipcRenderer.invoke(IPC.appInfo, undefined),
   openExternal: (url: string): Promise<IpcResult<true>> => ipcRenderer.invoke(IPC.appOpenExternal, url),
+  onPrepareQuit: (listener: () => void | Promise<void>): (() => void) => {
+    const onPrepare = (): void => {
+      void listener()
+    }
+    ipcRenderer.on(IPC.appPrepareQuit, onPrepare)
+    return () => ipcRenderer.removeListener(IPC.appPrepareQuit, onPrepare)
+  },
+  completeQuitFlush: (): void => ipcRenderer.send(IPC.appFlushComplete, undefined),
   searchProblems: (query: string, page = 1, pageSize = 20): Promise<IpcResult<ProblemSearchResult>> =>
     ipcRenderer.invoke(IPC.leetcodeSearch, { query, page, pageSize }),
   getProblem: (titleSlug: string): Promise<IpcResult<ProblemDetail>> =>

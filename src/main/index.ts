@@ -185,6 +185,12 @@ app.whenReady().then(() => {
     )
   })
 
+  let resolveQuitFlush: (() => void) | null = null
+  registerValidatedEvent(IPC.appFlushComplete, z.undefined(), () => {
+    resolveQuitFlush?.()
+    resolveQuitFlush = null
+  })
+
   registerValidatedHandler<undefined, RecentAttemptsResult>(IPC.attemptRecent, z.undefined(), () => {
     const accountKey = getAccountKey()
     return {
@@ -439,10 +445,39 @@ app.whenReady().then(() => {
     })
   }
 
-  app.once('will-quit', () => {
+  let shutdownStarted = false
+  let shutdownComplete = false
+  app.on('before-quit', (event) => {
+    if (shutdownComplete) return
+    event.preventDefault()
+    if (shutdownStarted) return
+    shutdownStarted = true
     clearInterval(retentionTimer)
-    attempts.close()
-    void auth.dispose()
+
+    const windows = BrowserWindow.getAllWindows()
+    const flushComplete =
+      windows.length === 0
+        ? Promise.resolve()
+        : new Promise<void>((resolve) => {
+            resolveQuitFlush = resolve
+            for (const window of windows) window.webContents.send(IPC.appPrepareQuit)
+          })
+
+    const timeout = new Promise<void>((resolve) => {
+      const timer = setTimeout(resolve, 1_500)
+      timer.unref()
+    })
+
+    void Promise.race([flushComplete, timeout])
+      .then(() => auth.dispose())
+      .catch((error: unknown) => {
+        console.error(`Application shutdown cleanup failed: ${error instanceof Error ? error.name : 'UnknownError'}`)
+      })
+      .finally(() => {
+        attempts.close()
+        shutdownComplete = true
+        app.exit(0)
+      })
   })
 
   app.on('activate', () => {

@@ -1,10 +1,10 @@
 import { spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { chromium } from 'playwright'
 
 const browsersPath = resolve(process.cwd(), 'resources', 'playwright')
 process.env.PLAYWRIGHT_BROWSERS_PATH = browsersPath
+const { chromium } = await import('playwright')
 
 if (existsSync(chromium.executablePath())) {
   console.log(`Playwright Chromium is already installed at ${browsersPath}.`)

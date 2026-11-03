@@ -9,30 +9,36 @@ type AppHeaderProps = {
   onToggleSidebar: () => void
   onOpenSearch: () => void
   onOpenAccounts: () => void
+  searchButtonRef: React.RefObject<HTMLButtonElement | null>
+  showSidebarToggle: boolean
 }
 
 export function AppHeader({
   sidebarCollapsed,
   onToggleSidebar,
   onOpenSearch,
-  onOpenAccounts
+  onOpenAccounts,
+  searchButtonRef,
+  showSidebarToggle
 }: AppHeaderProps): React.JSX.Element {
   return (
     <header className="drag-region flex h-12 shrink-0 items-center gap-3 border-b border-border bg-surface/55 px-4 pl-[86px]">
-      <Button
-        variant="ghost"
-        size="icon"
-        className="no-drag size-7"
-        aria-label={sidebarCollapsed ? 'Show recent problems' : 'Hide recent problems'}
-        aria-pressed={!sidebarCollapsed}
-        onClick={onToggleSidebar}
-      >
-        {sidebarCollapsed ? (
-          <PanelLeft className="size-4" aria-hidden="true" />
-        ) : (
-          <PanelLeftClose className="size-4" aria-hidden="true" />
-        )}
-      </Button>
+      {showSidebarToggle ? (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="no-drag size-7"
+          aria-label={sidebarCollapsed ? 'Show recent problems' : 'Hide recent problems'}
+          aria-pressed={!sidebarCollapsed}
+          onClick={onToggleSidebar}
+        >
+          {sidebarCollapsed ? (
+            <PanelLeft className="size-4" aria-hidden="true" />
+          ) : (
+            <PanelLeftClose className="size-4" aria-hidden="true" />
+          )}
+        </Button>
+      ) : null}
 
       <div className="flex w-[178px] shrink-0 items-center gap-2">
         <BrandMark />
@@ -40,6 +46,7 @@ export function AppHeader({
       </div>
 
       <button
+        ref={searchButtonRef}
         type="button"
         onClick={onOpenSearch}
         aria-keyshortcuts={isMacShortcut()}
