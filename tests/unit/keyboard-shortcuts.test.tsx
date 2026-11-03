@@ -64,4 +64,27 @@ describe('global keyboard shortcuts', () => {
     expect(focusEditor).toHaveBeenCalledOnce()
     expect(focusPanel).toHaveBeenCalledOnce()
   })
+
+  it('routes Option+Shift+F to formatting', () => {
+    const format = vi.fn()
+    renderHook(() => useKeyboardShortcuts({ search: vi.fn(), recent: vi.fn(), format }))
+
+    const event = dispatchShortcut('f', { metaKey: false, altKey: true, shiftKey: true })
+
+    expect(format).toHaveBeenCalledOnce()
+    expect(event.defaultPrevented).toBe(true)
+  })
+
+  it('routes undo and redo shortcuts', () => {
+    const undo = vi.fn()
+    const redo = vi.fn()
+    renderHook(() => useKeyboardShortcuts({ search: vi.fn(), recent: vi.fn(), undo, redo }))
+
+    dispatchShortcut('z')
+    dispatchShortcut('z', { shiftKey: true })
+    dispatchShortcut('y', { shiftKey: false })
+
+    expect(undo).toHaveBeenCalledOnce()
+    expect(redo).toHaveBeenCalledTimes(2)
+  })
 })

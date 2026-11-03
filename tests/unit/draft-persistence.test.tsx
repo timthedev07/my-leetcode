@@ -47,7 +47,10 @@ describe('draft persistence', () => {
       current: {
         focus: vi.fn(),
         revealLine: vi.fn(),
-        getEditorState: () => editorState
+        getEditorState: () => editorState,
+        formatDocument: vi.fn(async () => undefined),
+        undo: vi.fn(),
+        redo: vi.fn()
       }
     }
     const onSaved = vi.fn()
@@ -89,7 +92,10 @@ describe('draft persistence', () => {
       current: {
         focus: vi.fn(),
         revealLine: vi.fn(),
-        getEditorState: () => editorState
+        getEditorState: () => editorState,
+        formatDocument: vi.fn(async () => undefined),
+        undo: vi.fn(),
+        redo: vi.fn()
       }
     }
     const { result } = renderHook(() => useDraftPersistence(attempt, editorRef, vi.fn()))
