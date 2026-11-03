@@ -62,9 +62,17 @@ export type ProblemSearchResult = {
 
 export class LeetCodeProblemsService {
   private readonly client: LeetCodeGraphQLClient
+  private readonly detailCache = new Map<string, { expiresAtMs: number; value: ProblemDetail }>()
+  private readonly now: () => number
+  private readonly cacheTtlMs: number
 
-  constructor(transport?: FetchTransport) {
+  constructor(
+    transport?: FetchTransport,
+    options: { now?: () => number; cacheTtlMs?: number } = {}
+  ) {
     this.client = new LeetCodeGraphQLClient(transport)
+    this.now = options.now ?? Date.now
+    this.cacheTtlMs = options.cacheTtlMs ?? 30 * 60 * 1000
   }
 
   async search(query: string, page = 1, pageSize = 20): Promise<ProblemSearchResult> {
@@ -75,7 +83,8 @@ export class LeetCodeProblemsService {
       return { problems: [], total: 0, page: safePage, pageSize: safePageSize }
     }
 
-    const response = problemSearchResponseSchema.parse(
+    const response = parseExternal(
+      problemSearchResponseSchema,
       await this.client.request<unknown>(
         PROBLEM_SEARCH_DOCUMENT,
         {
@@ -110,7 +119,11 @@ export class LeetCodeProblemsService {
       throw new AppError('UNKNOWN', 'That problem address is not valid.')
     }
 
-    const response = problemDetailResponseSchema.parse(
+    const cached = this.detailCache.get(titleSlug)
+    if (cached && cached.expiresAtMs > this.now()) return cached.value
+
+    const response = parseExternal(
+      problemDetailResponseSchema,
       await this.client.request<unknown>(QUESTION_DETAIL_DOCUMENT, { titleSlug }, 'questionData')
     )
     const question = response.question
@@ -122,7 +135,7 @@ export class LeetCodeProblemsService {
     const starterCode = question.codeSnippets?.find((snippet) => snippet.langSlug === 'cpp')?.code ?? ''
     const topicTags = (question.topicTags ?? []).map(normaliseTopicTag)
 
-    return problemDetailSchema.parse({
+    const problem = problemDetailSchema.parse({
       internalId: question.questionId,
       frontendId: question.questionFrontendId,
       title: question.title,
@@ -134,6 +147,22 @@ export class LeetCodeProblemsService {
       hints: (question.hints ?? []).map(sanitiseProblemHtml),
       starterCode,
       exampleTestcases: question.exampleTestcases ?? ''
+    })
+    this.cacheDetail(titleSlug, problem)
+    return problem
+  }
+
+  private cacheDetail(titleSlug: string, problem: ProblemDetail): void {
+    if (this.detailCache.size >= 100) {
+      while (this.detailCache.size >= 100) {
+        const oldestKey = this.detailCache.keys().next().value
+        if (typeof oldestKey !== 'string') break
+        this.detailCache.delete(oldestKey)
+      }
+    }
+    this.detailCache.set(titleSlug, {
+      expiresAtMs: this.now() + this.cacheTtlMs,
+      value: problem
     })
   }
 }
@@ -232,5 +261,17 @@ function parseDifficulty(value: string): Difficulty {
     throw new AppError('API_CHANGED', 'LeetCode returned an unsupported difficulty value.')
   }
   return result.data
+}
+
+function parseExternal<T>(schema: z.ZodType<T>, value: unknown): T {
+  const parsed = schema.safeParse(value)
+  if (!parsed.success) {
+    throw new AppError(
+      'API_CHANGED',
+      'LeetCode returned an unexpected response. The service may have changed.',
+      parsed.error.message
+    )
+  }
+  return parsed.data
 }
 

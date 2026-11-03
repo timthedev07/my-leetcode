@@ -7,7 +7,7 @@ export type FetchTransport = (input: RequestInfo | URL, init?: RequestInit) => P
 export class LeetCodeGraphQLClient {
   private readonly client: GraphQLClient
 
-  constructor(transport: FetchTransport = globalThis.fetch) {
+  constructor(transport: FetchTransport = fetchWithTimeout) {
     this.client = new GraphQLClient(LEETCODE_GRAPHQL_URL, {
       fetch: transport,
       headers: {

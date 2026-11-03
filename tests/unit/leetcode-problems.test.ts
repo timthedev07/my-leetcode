@@ -73,5 +73,41 @@ describe('LeetCode problem discovery', () => {
 
     expect(sanitised).toBe('<p>Safe</p><a>bad</a>')
   })
+
+  it('reuses bounded metadata until the cache TTL expires', async () => {
+    const detail = await fixture('problem-detail.json')
+    const transport = vi.fn(async () => jsonResponse(detail))
+    let now = 1_000
+    const service = new LeetCodeProblemsService(transport, {
+      now: () => now,
+      cacheTtlMs: 50
+    })
+
+    await service.getProblem('minimum-size-subarray-sum')
+    now = 1_049
+    await service.getProblem('minimum-size-subarray-sum')
+    expect(transport).toHaveBeenCalledOnce()
+
+    now = 1_050
+    await service.getProblem('minimum-size-subarray-sum')
+    expect(transport).toHaveBeenCalledTimes(2)
+  })
+
+  it('maps schema drift to an actionable API error', async () => {
+    const transport = vi.fn(async () =>
+      jsonResponse({
+        question: {
+          questionId: '209',
+          title: 'Missing required fields'
+        }
+      })
+    )
+    const service = new LeetCodeProblemsService(transport)
+
+    await expect(service.getProblem('minimum-size-subarray-sum')).rejects.toMatchObject({
+      code: 'API_CHANGED',
+      message: 'LeetCode returned an unexpected response. The service may have changed.'
+    })
+  })
 })
 
