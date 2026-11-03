@@ -1,0 +1,23 @@
+{
+  "submissionDetails": {
+    "submissionId": 24681012,
+    "question": {
+      "questionId": "1",
+      "questionFrontendId": "1",
+      "titleSlug": "two-sum",
+      "title": "Two Sum"
+    },
+    "code": "class Solution {\npublic:\n    vector<int> twoSum(vector<int>& nums, int target) {\n        return {0, 1};\n    }\n};",
+    "lang": {
+      "name": "cpp",
+      "verboseName": "C++"
+    },
+    "statusCode": 10,
+    "statusDisplay": "Accepted",
+    "timestamp": 1762300000,
+    "runtime": 0,
+    "memory": 7300000,
+    "runtimeDisplay": "0 ms",
+    "memoryDisplay": "7.3 MB"
+  }
+}

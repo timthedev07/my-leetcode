@@ -15,14 +15,15 @@
     "dev": "electron-vite dev",
     "start": "electron-vite preview",
     "build": "yarn typecheck && electron-vite build",
-    "package": "yarn build && electron-builder --mac --arm64",
+    "package": "yarn install:browser && yarn build && electron-builder --mac --arm64",
     "package:dir": "yarn build && electron-builder --mac --arm64 --dir",
+    "install:browser": "node scripts/install-playwright-chromium.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "postinstall": "electron-builder install-app-deps"
+    "postinstall": "electron-builder install-app-deps && node scripts/install-playwright-chromium.mjs"
   },
   "dependencies": {
     "@radix-ui/react-alert-dialog": "^1.1.15",

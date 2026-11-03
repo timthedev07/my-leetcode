@@ -85,6 +85,64 @@ export const attemptSaveInputSchema = z.object({
   editorState: persistedEditorStateSchema.nullable()
 })
 
+export const leetcodeDisconnectInputSchema = z.object({
+  clearProfile: z.boolean()
+})
+
+export const judgeRunInputSchema = z.object({
+  problemSlug: z.string().regex(/^[a-z0-9-]+$/),
+  internalProblemId: z.string().regex(/^\d+$/),
+  typedCode: z.string().max(1_000_000),
+  dataInput: z.string().max(1_000_000)
+})
+
+export const judgeSubmitInputSchema = judgeRunInputSchema.omit({ dataInput: true })
+
+export const judgeCancelInputSchema = z.object({
+  problemSlug: z.string().regex(/^[a-z0-9-]+$/)
+})
+
+export const submissionsListInputSchema = z.object({
+  problemSlug: z.string().regex(/^[a-z0-9-]+$/),
+  offset: z.number().int().nonnegative().max(10_000).default(0),
+  limit: z.number().int().positive().max(50).default(20),
+  lastKey: z.string().max(500).nullable().default(null)
+})
+
+export const submissionDetailInputSchema = z.object({
+  submissionId: z.string().regex(/^\d+$/)
+})
+
+export const githubRepositoryInputSchema = z.object({
+  repository: z.string().regex(/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/),
+  branch: z.string().min(1).max(255)
+})
+
+export const githubBranchesInputSchema = z.object({
+  repository: z.string().regex(/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/)
+})
+
+export const githubSettingsSchema = githubRepositoryInputSchema
+
+export const githubClientIdSchema = z.object({
+  clientId: z
+    .string()
+    .trim()
+    .min(10)
+    .max(100)
+    .regex(/^[A-Za-z0-9_-]+$/)
+})
+
+export const githubPrepareSyncInputSchema = z.object({
+  problemSlug: z.string().regex(/^[a-z0-9-]+$/),
+  frontendProblemId: z.string().regex(/^\d+$/),
+  difficulty: difficultySchema
+})
+
+export const githubExecuteSyncInputSchema = githubPrepareSyncInputSchema.extend({
+  confirmOverwrite: z.boolean()
+})
+
 export const ipcResultSchema = <T extends z.ZodType>(data: T) =>
   z.discriminatedUnion('ok', [
     z.object({ ok: z.literal(true), data }),

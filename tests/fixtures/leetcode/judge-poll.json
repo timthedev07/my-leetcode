@@ -1,0 +1,28 @@
+{
+  "state": "SUCCESS",
+  "status_code": 10,
+  "status_msg": "Accepted",
+  "run_success": true,
+  "compile_error": null,
+  "full_compile_error": null,
+  "runtime_error": null,
+  "full_runtime_error": null,
+  "total_correct": 1,
+  "total_testcases": 1,
+  "runtime": "0 ms",
+  "memory": "7.1 MB",
+  "code_answer": [
+    "3"
+  ],
+  "expected_code_answer": [
+    "3"
+  ],
+  "std_output_list": [
+    ""
+  ],
+  "compare_result": "1",
+  "input": "[2,7,11,15]\n9",
+  "last_testcase": "[2,7,11,15]\n9",
+  "submission_id": 24681012,
+  "task_finish_time": 1762300000
+}

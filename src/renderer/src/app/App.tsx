@@ -1,24 +1,25 @@
 import { useQuery } from '@tanstack/react-query'
-import { ExternalLink, History, Laptop, ShieldCheck, UserRound } from 'lucide-react'
+import { History, ShieldCheck } from 'lucide-react'
 import { useCallback, useRef, useState } from 'react'
 import type { OpenedAttempt, ProblemSummary, RecentAttempt } from '@shared/types'
 import { AppHeader } from '@/components/app-header'
+import { AccountsDialog } from '@/components/accounts-dialog'
 import { EmptyWorkspace } from '@/components/empty-workspace'
+import { GitHubSettingsDialog } from '@/components/github-settings-dialog'
 import { ProblemWorkspace } from '@/components/problem-workspace'
 import { RecentSidebar } from '@/components/recent-sidebar'
 import { SearchPalette } from '@/components/search-palette'
 import { StatusFooter } from '@/components/status-footer'
-import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle
 } from '@/components/ui/dialog'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts'
+import { useLeetCodeAuth } from '@/hooks/use-leetcode-auth'
 import { useStoredState } from '@/hooks/use-stored-state'
 
 type UtilityView = 'docs' | 'settings' | null
@@ -32,6 +33,7 @@ export function App(): React.JSX.Element {
   const [selectedProblem, setSelectedProblem] = useState<ProblemSummary | null>(null)
   const [activeAttempt, setActiveAttempt] = useState<OpenedAttempt | null>(null)
   const flushRef = useRef<(() => Promise<void>) | null>(null)
+  const leetcode = useLeetCodeAuth()
   const appInfo = useQuery({
     queryKey: ['app-info'],
     queryFn: async () => {
@@ -118,6 +120,7 @@ export function App(): React.JSX.Element {
               onLoaded={handleLoaded}
               onFlushReady={handleFlushReady}
               onSearch={() => setSearchOpen(true)}
+              leetcodeConnected={leetcode.status.state === 'connected'}
             />
           ) : (
             <EmptyWorkspace onSearch={() => setSearchOpen(true)} />
@@ -125,8 +128,16 @@ export function App(): React.JSX.Element {
         </main>
 
         <StatusFooter
-          leetcodeLabel="LeetCode disconnected"
-          connected={false}
+          leetcodeLabel={
+            leetcode.status.state === 'connected'
+              ? `LeetCode · ${leetcode.status.username}`
+              : leetcode.status.state === 'connecting'
+                ? 'LeetCode · waiting for sign-in'
+                : leetcode.status.state === 'expired'
+                  ? 'LeetCode · session expired'
+                  : 'LeetCode disconnected'
+          }
+          connected={leetcode.status.state === 'connected'}
           onDocs={() => setUtilityView('docs')}
           onSettings={() => setUtilityView('settings')}
         />
@@ -171,55 +182,25 @@ export function App(): React.JSX.Element {
           </DialogContent>
         </Dialog>
 
-        <Dialog open={accountsOpen} onOpenChange={setAccountsOpen}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Accounts</DialogTitle>
-              <DialogDescription>LeetCode and GitHub connections are managed here.</DialogDescription>
-            </DialogHeader>
-            <div className="divide-y divide-border border-y border-border">
-              <ConnectionRow
-                icon={<UserRound className="size-4" aria-hidden="true" />}
-                label="LeetCode"
-                status="Not connected"
-              />
-              <ConnectionRow
-                icon={<Laptop className="size-4" aria-hidden="true" />}
-                label="GitHub"
-                status="Not connected"
-              />
-            </div>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  void window.desktop.openExternal('https://leetcode.com/')
-                }}
-              >
-                <ExternalLink className="size-4" aria-hidden="true" />
-                Open LeetCode
-              </Button>
-              <Button
-                onClick={() => {
-                  setAccountsOpen(false)
-                  setUtilityView('settings')
-                }}
-              >
-                Open settings
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <AccountsDialog
+          open={accountsOpen}
+          onOpenChange={setAccountsOpen}
+          onOpenSettings={() => {
+            setAccountsOpen(false)
+            setUtilityView('settings')
+          }}
+        />
 
-        <Dialog open={utilityView !== null} onOpenChange={(open) => !open && setUtilityView(null)}>
+        <GitHubSettingsDialog
+          open={utilityView === 'settings'}
+          onOpenChange={(open) => !open && setUtilityView(null)}
+        />
+
+        <Dialog open={utilityView === 'docs'} onOpenChange={(open) => !open && setUtilityView(null)}>
           <DialogContent className="max-w-lg">
             <DialogHeader>
-              <DialogTitle>{utilityView === 'docs' ? 'Documentation' : 'Settings'}</DialogTitle>
-              <DialogDescription>
-                {utilityView === 'docs'
-                  ? 'Setup and troubleshooting guidance will be available in the bundled documentation area.'
-                  : 'Connection, repository and local storage preferences.'}
-              </DialogDescription>
+              <DialogTitle>Documentation</DialogTitle>
+              <DialogDescription>Bundled setup and troubleshooting guidance.</DialogDescription>
             </DialogHeader>
             <div className="flex items-start gap-3 border-y border-border py-5">
               <ShieldCheck className="mt-0.5 size-4 shrink-0 text-accent" aria-hidden="true" />
@@ -237,23 +218,5 @@ export function App(): React.JSX.Element {
 
 function dispatchWorkspaceAction(action: 'description' | 'editor' | 'panel' | 'save' | 'run' | 'submit'): void {
   window.dispatchEvent(new CustomEvent('leetcode:workspace-action', { detail: action }))
-}
-
-function ConnectionRow({
-  icon,
-  label,
-  status
-}: {
-  icon: React.ReactNode
-  label: string
-  status: string
-}): React.JSX.Element {
-  return (
-    <div className="flex items-center gap-3 py-3">
-      <span className="text-muted">{icon}</span>
-      <span className="text-sm">{label}</span>
-      <span className="ml-auto text-xs text-muted">{status}</span>
-    </div>
-  )
 }
 

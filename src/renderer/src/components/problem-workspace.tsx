@@ -4,7 +4,6 @@ import {
   Braces,
   Check,
   Circle,
-  CloudUpload,
   Keyboard,
   Loader2,
   Play,
@@ -14,13 +13,25 @@ import {
 import {
   Suspense,
   lazy,
+  useCallback,
   useEffect,
   useRef,
   useState
 } from 'react'
-import type { OpenedAttempt, ProblemDetail, ProblemSummary } from '@shared/types'
+import type { JudgeResult, OpenedAttempt, ProblemDetail, ProblemSummary } from '@shared/types'
+import { ExecutionPanel, type ExecutionTab } from '@/components/execution-panel'
+import { GitHubSyncButton } from '@/components/github-sync-button'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { ProblemStatement } from '@/components/problem-statement'
 import type { CppEditorHandle } from '@/components/editor/cpp-editor'
@@ -38,13 +49,15 @@ type ProblemWorkspaceProps = {
   onLoaded: (attempt: OpenedAttempt) => void
   onFlushReady: (flush: (() => Promise<void>) | null) => void
   onSearch: () => void
+  leetcodeConnected: boolean
 }
 
 export function ProblemWorkspace({
   problemSummary,
   onLoaded,
   onFlushReady,
-  onSearch
+  onSearch,
+  leetcodeConnected
 }: ProblemWorkspaceProps): React.JSX.Element {
   const queryClient = useQueryClient()
   const opened = useQuery({
@@ -99,16 +112,19 @@ export function ProblemWorkspace({
       key={`${opened.data.attempt.accountKey}:${opened.data.attempt.problemId}`}
       opened={opened.data}
       onFlushReady={onFlushReady}
+      leetcodeConnected={leetcodeConnected}
     />
   )
 }
 
 function LoadedWorkspace({
   opened,
-  onFlushReady
+  onFlushReady,
+  leetcodeConnected
 }: {
   opened: OpenedAttempt
   onFlushReady: (flush: (() => Promise<void>) | null) => void
+  leetcodeConnected: boolean
 }): React.JSX.Element {
   const { problem, attempt } = opened
   const [tabFocusMode, setTabFocusMode] = useStoredState('editor:tab-focus-mode', false)
@@ -117,13 +133,91 @@ function LoadedWorkspace({
   const panelRef = useRef<HTMLDivElement>(null)
   const [editorReady, setEditorReady] = useState(false)
   const [testInput, setTestInput] = useState(problem.exampleTestcases)
+  const [executionTab, setExecutionTab] = useState<ExecutionTab>('tests')
+  const [judgeResult, setJudgeResult] = useState<JudgeResult | null>(null)
+  const [judgeError, setJudgeError] = useState<string | null>(null)
+  const [judgeBusy, setJudgeBusy] = useState<'run' | 'submit' | null>(null)
+  const [submitConfirmationOpen, setSubmitConfirmationOpen] = useState(false)
+  const [pendingRestore, setPendingRestore] = useState<string | null>(null)
+  const judgeGeneration = useRef(0)
+  const activeJudge = useRef<'run' | 'submit' | null>(null)
+  const mounted = useRef(true)
   const persistence = useDraftPersistence(attempt, editorRef, () => undefined)
   const flushDraft = persistence.flush
+  const currentDraft = persistence.draft
 
   useEffect(() => {
+    mounted.current = true
     onFlushReady(flushDraft)
-    return () => onFlushReady(null)
-  }, [flushDraft, onFlushReady])
+    return () => {
+      mounted.current = false
+      onFlushReady(null)
+      if (activeJudge.current) void window.desktop.cancelJudge(problem.titleSlug)
+    }
+  }, [flushDraft, onFlushReady, problem.titleSlug])
+
+  const runCode = useCallback(async (): Promise<void> => {
+    if (!leetcodeConnected) {
+      setExecutionTab('results')
+      setJudgeError('Connect LeetCode before running tests.')
+      return
+    }
+    if (judgeBusy) return
+    const generation = ++judgeGeneration.current
+    activeJudge.current = 'run'
+    setJudgeBusy('run')
+    setJudgeError(null)
+    setExecutionTab('results')
+    await flushDraft()
+
+    const result = await window.desktop.runCode(
+      problem.titleSlug,
+      problem.internalId,
+      currentDraft,
+      testInput
+    )
+    if (generation !== judgeGeneration.current || !mounted.current) return
+    activeJudge.current = null
+    setJudgeBusy(null)
+    if (!result.ok) {
+      setJudgeError(result.error.message)
+      return
+    }
+    setJudgeResult(result.data)
+  }, [currentDraft, flushDraft, judgeBusy, leetcodeConnected, problem.internalId, problem.titleSlug, testInput])
+
+  const submitCode = useCallback(async (): Promise<void> => {
+    if (!leetcodeConnected) {
+      setExecutionTab('results')
+      setJudgeError('Connect LeetCode before submitting.')
+      return
+    }
+    if (judgeBusy) return
+    setSubmitConfirmationOpen(false)
+    const generation = ++judgeGeneration.current
+    activeJudge.current = 'submit'
+    setJudgeBusy('submit')
+    setJudgeError(null)
+    setExecutionTab('results')
+    await flushDraft()
+
+    const result = await window.desktop.submitCode(problem.titleSlug, problem.internalId, currentDraft)
+    if (generation !== judgeGeneration.current || !mounted.current) return
+    activeJudge.current = null
+    setJudgeBusy(null)
+    if (!result.ok) {
+      setJudgeError(result.error.message)
+      return
+    }
+    setJudgeResult(result.data)
+  }, [currentDraft, flushDraft, judgeBusy, leetcodeConnected, problem.internalId, problem.titleSlug])
+
+  const cancelJudge = useCallback((): void => {
+    judgeGeneration.current += 1
+    void window.desktop.cancelJudge(problem.titleSlug)
+    activeJudge.current = null
+    setJudgeBusy(null)
+  }, [problem.titleSlug])
 
   useEffect(() => {
     const onWorkspaceAction = (event: Event): void => {
@@ -132,10 +226,12 @@ function LoadedWorkspace({
       else if (action === 'editor') editorRef.current?.focus()
       else if (action === 'panel') panelRef.current?.focus()
       else if (action === 'save') void flushDraft()
+      else if (action === 'run') void runCode()
+      else if (action === 'submit') setSubmitConfirmationOpen(true)
     }
     window.addEventListener('leetcode:workspace-action', onWorkspaceAction)
     return () => window.removeEventListener('leetcode:workspace-action', onWorkspaceAction)
-  }, [flushDraft])
+  }, [flushDraft, runCode])
 
   return (
     <div className="flex min-h-0 min-w-0 flex-col overflow-hidden">
@@ -152,7 +248,7 @@ function LoadedWorkspace({
                   problem={problem}
                   attempt={attempt}
                   editorRef={editorRef}
-                  draft={persistence.draft}
+                  draft={currentDraft}
                   saveStatus={persistence.status}
                   saveError={persistence.errorMessage}
                   tabFocusMode={tabFocusMode}
@@ -162,20 +258,71 @@ function LoadedWorkspace({
                   onBlur={() => void persistence.flush()}
                   onToggleTabFocus={() => setTabFocusMode(!tabFocusMode)}
                   onSave={() => void persistence.flush()}
+                  onRun={() => void runCode()}
+                  onSubmit={() => setSubmitConfirmationOpen(true)}
+                  judgeBusy={judgeBusy}
+                  leetcodeConnected={leetcodeConnected}
                 />
               </Panel>
               <PanelResizeHandle className="workspace-resize-handle workspace-resize-handle-vertical" />
               <Panel defaultSize={34} minSize={20} className="min-w-0">
-                <LowerPanel
+                <ExecutionPanel
                   panelRef={panelRef}
+                  tab={executionTab}
+                  onTabChange={setExecutionTab}
                   testInput={testInput}
                   onTestInputChange={setTestInput}
+                  leetcodeConnected={leetcodeConnected}
+                  problemSlug={problem.titleSlug}
+                  judgeResult={judgeResult}
+                  judgeError={judgeError}
+                  judgeBusy={judgeBusy}
+                  onCancelJudge={cancelJudge}
+                  onRestoreCode={setPendingRestore}
                 />
               </Panel>
             </PanelGroup>
           </Panel>
         </PanelGroup>
       </div>
+
+      <AlertDialog open={submitConfirmationOpen} onOpenChange={setSubmitConfirmationOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Submit this C++ solution to LeetCode?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Submission is an external action recorded against your LeetCode account. The current editor snapshot will be
+              judged.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void submitCode()}>Submit</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={pendingRestore !== null} onOpenChange={(open) => !open && setPendingRestore(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Replace the current draft?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Restoring this submission replaces the editor text. The replaced draft will be overwritten after autosave.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep draft</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (pendingRestore !== null) persistence.markDirty(pendingRestore)
+                setPendingRestore(null)
+              }}
+            >
+              Restore submission
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
@@ -193,7 +340,11 @@ function EditorPane({
   onDraftChange,
   onBlur,
   onToggleTabFocus,
-  onSave
+  onSave,
+  onRun,
+  onSubmit,
+  judgeBusy,
+  leetcodeConnected
 }: {
   problem: ProblemDetail
   attempt: OpenedAttempt['attempt']
@@ -208,6 +359,10 @@ function EditorPane({
   onBlur: () => void
   onToggleTabFocus: () => void
   onSave: () => void
+  onRun: () => void
+  onSubmit: () => void
+  judgeBusy: 'run' | 'submit' | null
+  leetcodeConnected: boolean
 }): React.JSX.Element {
   return (
     <section className="flex h-full min-h-0 flex-col bg-[#141416]" aria-label="C++ editor">
@@ -266,6 +421,8 @@ function EditorPane({
             onChange={onDraftChange}
             onBlur={onBlur}
             onSave={onSave}
+            onRun={onRun}
+            onSubmit={onSubmit}
             onReady={onReady}
           />
         </Suspense>
@@ -276,74 +433,22 @@ function EditorPane({
           label="Run"
           keys="⌘↵"
           icon={<Play className="size-3.5" aria-hidden="true" />}
-          disabled
-          reason="Connect LeetCode to run tests."
+          disabled={!leetcodeConnected || judgeBusy !== null}
+          reason={leetcodeConnected ? 'Run the current editor snapshot against the custom test input.' : 'Connect LeetCode to run tests.'}
+          onClick={onRun}
         />
         <ActionButton
           label="Submit"
           keys="⌘⇧↵"
           icon={<Send className="size-3.5" aria-hidden="true" />}
-          disabled
-          reason="Connect LeetCode to submit."
+          disabled={!leetcodeConnected || judgeBusy !== null}
+          reason={leetcodeConnected ? 'Submit the current editor snapshot to LeetCode.' : 'Connect LeetCode to submit.'}
+          onClick={onSubmit}
         />
         <div className="ml-auto">
-          <ActionButton
-            label="Sync to GitHub"
-            icon={<CloudUpload className="size-3.5" aria-hidden="true" />}
-            disabled
-            reason="GitHub sync requires a verified Accepted C++ submission."
-          />
+          <GitHubSyncButton problem={problem} leetcodeConnected={leetcodeConnected} />
         </div>
       </div>
-    </section>
-  )
-}
-
-function LowerPanel({
-  panelRef,
-  testInput,
-  onTestInputChange
-}: {
-  panelRef: React.RefObject<HTMLDivElement | null>
-  testInput: string
-  onTestInputChange: (value: string) => void
-}): React.JSX.Element {
-  return (
-    <section ref={panelRef} tabIndex={-1} className="flex h-full min-h-0 flex-col bg-surface/45 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring" aria-label="Test and result panel">
-      <Tabs defaultValue="tests" className="flex min-h-0 flex-1 flex-col">
-        <div className="flex h-10 shrink-0 items-center border-b border-border px-2">
-          <TabsList className="h-8 rounded-none border-0 bg-transparent p-0">
-            <TabsTrigger value="tests">Test cases</TabsTrigger>
-            <TabsTrigger value="results">Results</TabsTrigger>
-            <TabsTrigger value="submissions">Submissions</TabsTrigger>
-          </TabsList>
-        </div>
-        <TabsContent value="tests" className="m-0 min-h-0 flex-1 p-3">
-          <label className="sr-only" htmlFor="custom-test-input">
-            Custom test cases
-          </label>
-          <textarea
-            id="custom-test-input"
-            value={testInput}
-            onChange={(event) => onTestInputChange(event.target.value)}
-            spellCheck={false}
-            className="h-full min-h-24 w-full resize-none rounded-md border border-border bg-background/55 p-3 font-mono text-xs leading-5 text-foreground outline-none placeholder:text-muted/60 focus-visible:border-accent/60 focus-visible:ring-1 focus-visible:ring-accent/40"
-            placeholder="Enter one input per line, using LeetCode’s test-case format."
-          />
-        </TabsContent>
-        <TabsContent value="results" className="m-0 grid min-h-0 flex-1 place-items-center p-5">
-          <div className="text-center">
-            <Circle className="mx-auto size-4 text-muted/60" aria-hidden="true" />
-            <p className="mt-2 text-xs text-muted">Run your C++ solution to see case results.</p>
-          </div>
-        </TabsContent>
-        <TabsContent value="submissions" className="m-0 grid min-h-0 flex-1 place-items-center p-5">
-          <div className="text-center">
-            <Circle className="mx-auto size-4 text-muted/60" aria-hidden="true" />
-            <p className="mt-2 text-xs text-muted">Connect LeetCode to load submission history.</p>
-          </div>
-        </TabsContent>
-      </Tabs>
     </section>
   )
 }
@@ -390,13 +495,15 @@ function ActionButton({
   keys,
   icon,
   disabled,
-  reason
+  reason,
+  onClick
 }: {
   label: string
   keys?: string
   icon: React.ReactNode
   disabled: boolean
   reason: string
+  onClick: () => void
 }): React.JSX.Element {
   return (
     <Tooltip>
@@ -408,6 +515,7 @@ function ActionButton({
           className={cn(disabled && 'cursor-not-allowed opacity-45')}
           onClick={(event) => {
             if (disabled) event.preventDefault()
+            else onClick()
           }}
         >
           {icon}
