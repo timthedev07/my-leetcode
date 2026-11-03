@@ -1,0 +1,30 @@
+{
+  "question": {
+    "questionId": "209",
+    "questionFrontendId": "209",
+    "title": "Minimum Size Subarray Sum",
+    "titleSlug": "minimum-size-subarray-sum",
+    "difficulty": "Medium",
+    "isPaidOnly": false,
+    "content": "<p>Find the minimum length.</p><script>alert(1)</script><p><strong>Example 1:</strong></p><pre><code>Input: target = 7</code></pre><p><strong>Constraints:</strong></p><ul><li><code>1 &lt;= nums.length</code></li></ul><a href=\"javascript:alert(1)\">unsafe</a>",
+    "topicTags": [
+      { "name": "Array", "slug": "array" },
+      { "name": "Sliding Window", "slug": "sliding-window" }
+    ],
+    "hints": ["Use a sliding <strong>window</strong>."],
+    "codeSnippets": [
+      {
+        "lang": "Java",
+        "langSlug": "java",
+        "code": "class Solution {}"
+      },
+      {
+        "lang": "C++",
+        "langSlug": "cpp",
+        "code": "class Solution {\npublic:\n    int minSubArrayLen(int target, vector<int>& nums) {\n        \n    }\n};"
+      }
+    ],
+    "exampleTestcases": "7\n[2,3,1,2,4,3]\n4\n[1,4,4]\n11\n[1,1,1,1,1,1,1,1]"
+  }
+}
+

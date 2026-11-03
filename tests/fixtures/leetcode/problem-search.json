@@ -1,0 +1,40 @@
+{
+  "problemsetQuestionList": {
+    "total": 4,
+    "questions": [
+      {
+        "frontendQuestionId": "2875",
+        "title": "Minimum Size Subarray in Infinite Array",
+        "titleSlug": "minimum-size-subarray-in-infinite-array",
+        "difficulty": "Medium",
+        "paidOnly": false,
+        "topicTags": [{ "name": "Array", "slug": "array" }]
+      },
+      {
+        "frontendQuestionId": "209",
+        "title": "Minimum Size Subarray Sum",
+        "titleSlug": "minimum-size-subarray-sum",
+        "difficulty": "Medium",
+        "paidOnly": false,
+        "topicTags": [{ "name": "Sliding Window", "slug": "sliding-window" }]
+      },
+      {
+        "frontendQuestionId": "76",
+        "title": "Minimum Window Substring",
+        "titleSlug": "minimum-window-substring",
+        "difficulty": "Hard",
+        "paidOnly": false,
+        "topicTags": [{ "name": "Sliding Window", "slug": "sliding-window" }]
+      },
+      {
+        "frontendQuestionId": "1303",
+        "title": "Find the Team Size",
+        "titleSlug": "find-the-team-size",
+        "difficulty": "Easy",
+        "paidOnly": true,
+        "topicTags": [{ "name": "Database", "slug": "database" }]
+      }
+    ]
+  }
+}
+

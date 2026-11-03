@@ -1,76 +1,187 @@
 import { useQuery } from '@tanstack/react-query'
-import { BookOpen, Command, Search, Settings } from 'lucide-react'
+import { ExternalLink, History, Laptop, ShieldCheck, UserRound } from 'lucide-react'
+import { useState } from 'react'
+import type { Attempt, ProblemSummary } from '@shared/types'
+import { AppHeader } from '@/components/app-header'
+import { EmptyWorkspace } from '@/components/empty-workspace'
+import { ProblemPreview } from '@/components/problem-preview'
+import { RecentSidebar } from '@/components/recent-sidebar'
+import { SearchPalette } from '@/components/search-palette'
+import { StatusFooter } from '@/components/status-footer'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
+import { TooltipProvider } from '@/components/ui/tooltip'
+import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts'
+import { useStoredState } from '@/hooks/use-stored-state'
+
+type UtilityView = 'docs' | 'settings' | null
 
 export function App(): React.JSX.Element {
+  const [sidebarCollapsed, setSidebarCollapsed] = useStoredState('layout:sidebar-collapsed', false)
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [recentOpen, setRecentOpen] = useState(false)
+  const [accountsOpen, setAccountsOpen] = useState(false)
+  const [utilityView, setUtilityView] = useState<UtilityView>(null)
+  const [selectedProblem, setSelectedProblem] = useState<ProblemSummary | null>(null)
+  const [activeAttempt, setActiveAttempt] = useState<Attempt | null>(null)
+
   const appInfo = useQuery({
     queryKey: ['app-info'],
     queryFn: async () => {
       const result = await window.desktop.getAppInfo()
       if (!result.ok) throw new Error(result.error.message)
       return result.data
-    }
+    },
+    staleTime: Infinity
   })
 
+  useKeyboardShortcuts({
+    search: () => setSearchOpen(true),
+    recent: () => setRecentOpen(true)
+  })
+
+  const selectProblem = (problem: ProblemSummary): void => {
+    setSelectedProblem(problem)
+    setActiveAttempt(null)
+  }
+
   return (
-    <div className="grid min-h-screen grid-rows-[48px_1fr_30px] bg-background text-foreground">
-      <header className="drag-region flex items-center border-b border-border px-4 pl-24">
-        <div className="w-52 text-[13px] font-semibold tracking-tight">LeetCode Desktop</div>
-        <button
-          type="button"
-          className="no-drag flex h-8 w-full max-w-xl items-center gap-2 rounded-md border border-border bg-surface px-3 text-left text-[13px] text-muted transition-colors hover:border-border-strong hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    <TooltipProvider delayDuration={350}>
+      <div className="grid h-screen min-h-[600px] grid-rows-[48px_minmax(0,1fr)_32px] overflow-hidden bg-background text-foreground">
+        <AppHeader
+          sidebarCollapsed={sidebarCollapsed}
+          onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
+          onOpenSearch={() => setSearchOpen(true)}
+          onOpenAccounts={() => setAccountsOpen(true)}
+        />
+
+        <main
+          className="grid min-h-0 overflow-hidden"
+          style={{ gridTemplateColumns: sidebarCollapsed ? 'minmax(0,1fr)' : '232px minmax(0,1fr)' }}
         >
-          <Search className="size-4" aria-hidden="true" />
-          <span className="flex-1">Search problems</span>
-          <kbd className="flex items-center gap-0.5 rounded border border-border bg-surface-raised px-1.5 py-0.5 font-sans text-[10px]">
-            <Command className="size-2.5" aria-hidden="true" />K
-          </kbd>
-        </button>
-        <div className="ml-auto">
-          <Button variant="ghost" size="sm">Accounts</Button>
-        </div>
-      </header>
+          <RecentSidebar
+            attempts={[]}
+            activeProblemId={activeAttempt?.problemId ?? selectedProblem?.frontendId ?? null}
+            collapsed={sidebarCollapsed}
+            onSelect={setActiveAttempt}
+            onOpenRecent={() => setRecentOpen(true)}
+          />
 
-      <main className="grid min-h-0 grid-cols-[232px_1fr]">
-        <aside className="border-r border-border bg-surface/60 p-3" aria-label="Recent problems">
-          <div className="mb-2 px-2 text-xs font-medium text-muted">Recent</div>
-          <div className="rounded-md border border-dashed border-border px-3 py-5 text-center text-xs leading-5 text-muted">
-            Open a problem to start
-            <br />
-            a local C++ attempt.
-          </div>
-        </aside>
+          {selectedProblem ? (
+            <ProblemPreview problemSummary={selectedProblem} onOpenSearch={() => setSearchOpen(true)} />
+          ) : (
+            <EmptyWorkspace onSearch={() => setSearchOpen(true)} />
+          )}
+        </main>
 
-        <section className="grid min-h-0 place-items-center p-8">
-          <div className="max-w-md text-center">
-            <h1 className="text-xl font-semibold tracking-tight">Solve in a focused workspace</h1>
-            <p className="mt-2 text-sm leading-6 text-muted">
-              Search the live LeetCode catalogue, keep a private C++ draft, and send accepted code to a chosen GitHub branch.
-            </p>
-            <Button className="mt-5">
-              <Search className="size-4" aria-hidden="true" />
-              Search problems
-            </Button>
-          </div>
-        </section>
-      </main>
+        <StatusFooter
+          leetcodeLabel="LeetCode disconnected"
+          connected={false}
+          onDocs={() => setUtilityView('docs')}
+          onSettings={() => setUtilityView('settings')}
+        />
 
-      <footer className="flex items-center border-t border-border bg-surface/45 px-4 text-xs text-muted">
-        <nav className="flex items-center gap-1" aria-label="Application">
-          <Button variant="ghost" size="sm">
-            <BookOpen className="size-3.5" aria-hidden="true" />
-            Docs
-          </Button>
-          <Button variant="ghost" size="sm">
-            <Settings className="size-3.5" aria-hidden="true" />
-            Settings
-          </Button>
-        </nav>
-        <span className="ml-auto">
-          LeetCode disconnected
-          {appInfo.data ? ` · v${appInfo.data.version}` : ''}
-        </span>
-      </footer>
+        <SearchPalette open={searchOpen} onOpenChange={setSearchOpen} onSelect={selectProblem} />
+
+        <Dialog open={recentOpen} onOpenChange={setRecentOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Recent problems</DialogTitle>
+              <DialogDescription>Attempts from the last 30 days appear here.</DialogDescription>
+            </DialogHeader>
+            <div className="grid place-items-center border-y border-border py-10 text-center">
+              <History className="size-5 text-muted" aria-hidden="true" />
+              <p className="mt-3 text-sm text-foreground">No recent problems</p>
+              <p className="mt-1 text-xs text-muted">Search for a problem to begin.</p>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={accountsOpen} onOpenChange={setAccountsOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Accounts</DialogTitle>
+              <DialogDescription>LeetCode and GitHub connections are managed here.</DialogDescription>
+            </DialogHeader>
+            <div className="divide-y divide-border border-y border-border">
+              <ConnectionRow
+                icon={<UserRound className="size-4" aria-hidden="true" />}
+                label="LeetCode"
+                status="Not connected"
+              />
+              <ConnectionRow
+                icon={<Laptop className="size-4" aria-hidden="true" />}
+                label="GitHub"
+                status="Not connected"
+              />
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  void window.desktop.openExternal('https://leetcode.com/')
+                }}
+              >
+                <ExternalLink className="size-4" aria-hidden="true" />
+                Open LeetCode
+              </Button>
+              <Button
+                onClick={() => {
+                  setAccountsOpen(false)
+                  setUtilityView('settings')
+                }}
+              >
+                Open settings
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={utilityView !== null} onOpenChange={(open) => !open && setUtilityView(null)}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>{utilityView === 'docs' ? 'Documentation' : 'Settings'}</DialogTitle>
+              <DialogDescription>
+                {utilityView === 'docs'
+                  ? 'Setup and troubleshooting guidance will be available in the bundled documentation area.'
+                  : 'Connection, repository and local storage preferences.'}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex items-start gap-3 border-y border-border py-5">
+              <ShieldCheck className="mt-0.5 size-4 shrink-0 text-accent" aria-hidden="true" />
+              <p className="text-xs leading-5 text-muted">
+                Credentials are stored outside the rendered interface. Application version{' '}
+                {appInfo.data?.version ?? '…'} on {appInfo.data?.platform ?? 'this platform'}.
+              </p>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </TooltipProvider>
+  )
+}
+
+function ConnectionRow({
+  icon,
+  label,
+  status
+}: {
+  icon: React.ReactNode
+  label: string
+  status: string
+}): React.JSX.Element {
+  return (
+    <div className="flex items-center gap-3 py-3">
+      <span className="text-muted">{icon}</span>
+      <span className="text-sm">{label}</span>
+      <span className="ml-auto text-xs text-muted">{status}</span>
     </div>
   )
 }
