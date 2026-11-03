@@ -1,21 +1,9 @@
 import { session } from 'electron'
+import { buildContentSecurityPolicy } from './csp-policy'
 
 export function installContentSecurityPolicy(): void {
   const development = Boolean(process.env.ELECTRON_RENDERER_URL)
-  const connectSources = development ? "'self' ws://localhost:* http://localhost:*" : "'self'"
-  const policy = [
-    "default-src 'self'",
-    "script-src 'self'",
-    "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data:",
-    "font-src 'self' data:",
-    `connect-src ${connectSources}`,
-    "worker-src 'self' blob:",
-    "object-src 'none'",
-    "frame-src 'none'",
-    "base-uri 'none'",
-    "form-action 'none'"
-  ].join('; ')
+  const policy = buildContentSecurityPolicy(development)
 
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
     callback({

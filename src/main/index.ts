@@ -20,7 +20,7 @@ import {
   submissionDetailInputSchema,
   submissionsListInputSchema
 } from '@shared/schemas'
-import { ATTEMPT_RETENTION_MS } from '@shared/constants'
+import { ATTEMPT_CLEANUP_INTERVAL_MS } from '@shared/constants'
 import type {
   AppInfo,
   GitHubAuthStatus,
@@ -120,7 +120,7 @@ app.whenReady().then(() => {
   }
 
   attempts.deleteExpired(Date.now())
-  const retentionTimer = setInterval(() => attempts.deleteExpired(Date.now()), ATTEMPT_RETENTION_MS)
+  const retentionTimer = setInterval(() => attempts.deleteExpired(Date.now()), ATTEMPT_CLEANUP_INTERVAL_MS)
   retentionTimer.unref()
 
   registerValidatedHandler<undefined, AppInfo>(IPC.appInfo, z.undefined(), () =>
