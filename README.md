@@ -11,6 +11,8 @@ Implemented:
 - Secure Electron main, preload and sandboxed renderer architecture.
 - Live LeetCode GraphQL problem search, problem detail and C++ starter templates.
 - Per-problem SQLite drafts, editor state, 500 ms autosave and 30-day retention.
+- Optional Vim editing with persistent Standard/Vim mode and a live Vim status bar.
+- Local `.clang-format` configuration, presets, live preview and offline WASM formatting.
 - Playwright persistent-profile LeetCode login without cookie copying.
 - Authenticated C++ Run, Submit, polling, submission history, source preview and statistics.
 - GitHub device authorisation, encrypted token storage and repository/branch verification.
@@ -100,6 +102,10 @@ Electron main process
 ```
 
 See the bundled **Docs** area or the Markdown files in [`docs/`](docs/) for setup, shortcuts, storage, troubleshooting, privacy and API limitations.
+
+The editor supports **Format** through the toolbar, `Option+Shift+F` and Monaco’s
+Format Document action. Formatting is always local and never runs automatically
+before Run, Submit or GitHub Sync.
 
 ## Security and privacy
 

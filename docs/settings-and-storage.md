@@ -6,6 +6,22 @@ The application is dark-only. It does not follow the operating-system light them
 
 The editor uses the system Monaco typeface when installed, followed by Menlo, Consolas and generic monospace fallbacks.
 
+## Vim preference
+
+The Standard/Vim preference is a non-secret global setting stored in SQLite. It
+applies whenever a workspace is reopened and defaults to Standard for new
+installations.
+
+## C++ formatting configuration
+
+The active `.clang-format` file is stored in Electron’s user-data directory.
+The file is validated as YAML in the main process and against the bundled
+clang-format engine in the Formatting settings panel.
+
+Presets, individual controls and the complete YAML editor all update the same
+configuration. Import and export use native file dialogues. Invalid changes do
+not replace the last valid file.
+
 ## Drafts
 
 - Drafts are stored per LeetCode account and displayed problem ID.

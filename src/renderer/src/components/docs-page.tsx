@@ -16,6 +16,7 @@ const order = [
   'leetcode-authentication.md',
   'github-authentication.md',
   'github-sync.md',
+  'vim-and-formatting.md',
   'keyboard-shortcuts.md',
   'settings-and-storage.md',
   'troubleshooting.md',

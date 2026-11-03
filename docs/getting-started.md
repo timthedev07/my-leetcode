@@ -21,6 +21,8 @@ Selecting a problem creates one local attempt. Reopening the same problem restor
 - Panel sizes and the Recent sidebar state persist between launches.
 - **Run** tests the current C++ snapshot against your custom test input.
 - **Submit** performs an external LeetCode submission after confirmation.
+- **Format** applies the saved local clang-format configuration.
+- **Standard/Vim** switches keybindings without replacing the Monaco model.
 - **Sync to GitHub** is available only when a latest Accepted C++ submission can be verified.
 
 ## First setup
@@ -32,4 +34,5 @@ Selecting a problem creates one local attempt. Reopening the same problem restor
 5. Use **Sync to GitHub** and review the source and destination before confirming.
 
 See [LeetCode Authentication](leetcode-authentication.md), [GitHub Authentication](github-authentication.md) and [GitHub Synchronisation](github-sync.md).
+Editor behaviour is covered in [Vim and C++ Formatting](vim-and-formatting.md).
 

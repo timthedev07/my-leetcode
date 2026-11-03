@@ -13,6 +13,15 @@ The authoritative product specification is [IMPLEMENTATION_PLAN.md](IMPLEMENTATI
 - [x] Phase 6: GitHub device login and accepted-C++ synchronisation.
 - [x] Phase 7: Documentation, packaging, visual QA and release validation.
 
+## Editor extensions
+
+- [x] Optional Standard/Vim mode with persistent preference and mode status.
+- [x] Local C++ formatting through the bundled clang-format WebAssembly engine.
+- [x] Monaco Format Document provider, toolbar action and `Option+Shift+F`.
+- [x] Persistent `.clang-format` configuration, presets, YAML, import/export and live preview.
+- [x] Vim and formatting integration tests, including offline and packaged operation.
+- [x] Vim and formatting documentation.
+
 ## External gates
 
 - [ ] Authenticated LeetCode judging must be exercised with an authorised user session.

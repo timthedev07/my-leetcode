@@ -12,6 +12,7 @@ The main process owns:
 - submission history and remote statistics;
 - GitHub device flow, tokens and REST writes;
 - SQLite drafts, retention and settings.
+- persistent non-secret editor preferences and the `.clang-format` file.
 
 ## Data flow
 
@@ -20,6 +21,11 @@ Search and problem-detail responses are validated with Zod before normalisation.
 Judge operations store immutable snapshots of source and custom input. Polling is bounded and cancellable. A Run result and Submit result remain semantically distinct.
 
 GitHub sync revalidates authentication, destination permission, the latest Accepted C++ submission and the remote file state before writing.
+
+The renderer hosts Monaco and a dedicated `monaco-vim` adapter. Disposing Vim
+removes its listeners without replacing the model. C++ formatting runs in a
+Vite Web Worker containing the locally bundled clang-format WebAssembly engine;
+only a version-checked Monaco text edit is returned to the editor.
 
 ## Security controls
 

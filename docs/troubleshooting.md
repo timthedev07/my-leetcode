@@ -18,6 +18,20 @@ The action requires a connected and validated LeetCode account. A passed custom 
 
 If judging times out, use the Cancel action and retry once. Repeated requests can trigger rate limits.
 
+## Vim command behaves differently
+
+`monaco-vim` implements a CodeMirror-compatible subset rather than full
+Neovim. Switch to Standard mode if a compound command does not behave as
+expected. The current Vim source remains in the draft.
+
+## Formatting is unavailable
+
+- Open **Settings → Formatting** and confirm that the YAML is valid.
+- Restore or reset the configuration if the stored file cannot be read.
+- A failed formatter leaves the editor unchanged.
+- Formatting does not require network access; contact with a remote formatter
+  is never attempted.
+
 ## Submission source is unavailable
 
 History can list a submission whose source is restricted or no longer available. The app reports that state and does not substitute editor text.

@@ -36,6 +36,7 @@ yarn package
 ## Tests
 
 - Unit tests cover search ranking, retention boundaries, autosave debounce, judge state, accepted-submission selection, GitHub commit construction, duplicate detection, token encryption and repository permissions.
+- Editor tests cover real clang-format output, stale formatting results, `.clang-format` persistence, Vim mode transitions and shortcut precedence.
 - Integration tests cover GraphQL normalisation, auth state transitions, judge polling/cancellation and GitHub REST boundaries.
 - Accessibility tests cover keyboard registries and focusable search interactions.
 - Playwright Electron tests launch the built app and assert the sandbox boundary.
@@ -46,6 +47,7 @@ Live integrations are opt-in and require user-owned credentials. Automated fixtu
 
 - `better-sqlite3` is rebuilt for Electron’s ABI.
 - Playwright Chromium is copied from `resources/playwright` to application resources.
+- The clang-format worker and its WASM asset are emitted under `out/renderer/assets`.
 - The build is ad-hoc unsigned unless a Developer ID application identity and notarisation credentials are configured.
 - No automatic updater is enabled.
 
