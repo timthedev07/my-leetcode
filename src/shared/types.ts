@@ -76,3 +76,15 @@ export type Attempt = {
   lastSavedAtMs: number
 }
 
+export type RecentAttempt = Omit<Attempt, 'draftCpp' | 'editorState'>
+
+export type OpenedAttempt = {
+  problem: ProblemDetail
+  attempt: Attempt
+}
+
+export type RecentAttemptsResult = {
+  accountKey: string
+  attempts: RecentAttempt[]
+}
+

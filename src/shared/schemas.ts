@@ -79,6 +79,12 @@ export const problemSlugInputSchema = z.object({
   titleSlug: z.string().regex(/^[a-z0-9-]+$/)
 })
 
+export const attemptSaveInputSchema = z.object({
+  problemId: z.string().regex(/^\d+$/),
+  draftCpp: z.string().max(1_000_000),
+  editorState: persistedEditorStateSchema.nullable()
+})
+
 export const ipcResultSchema = <T extends z.ZodType>(data: T) =>
   z.discriminatedUnion('ok', [
     z.object({ ok: z.literal(true), data }),

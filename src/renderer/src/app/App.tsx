@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { ExternalLink, History, Laptop, ShieldCheck, UserRound } from 'lucide-react'
-import { useState } from 'react'
-import type { Attempt, ProblemSummary } from '@shared/types'
+import { useCallback, useRef, useState } from 'react'
+import type { OpenedAttempt, ProblemSummary, RecentAttempt } from '@shared/types'
 import { AppHeader } from '@/components/app-header'
 import { EmptyWorkspace } from '@/components/empty-workspace'
-import { ProblemPreview } from '@/components/problem-preview'
+import { ProblemWorkspace } from '@/components/problem-workspace'
 import { RecentSidebar } from '@/components/recent-sidebar'
 import { SearchPalette } from '@/components/search-palette'
 import { StatusFooter } from '@/components/status-footer'
@@ -30,8 +30,8 @@ export function App(): React.JSX.Element {
   const [accountsOpen, setAccountsOpen] = useState(false)
   const [utilityView, setUtilityView] = useState<UtilityView>(null)
   const [selectedProblem, setSelectedProblem] = useState<ProblemSummary | null>(null)
-  const [activeAttempt, setActiveAttempt] = useState<Attempt | null>(null)
-
+  const [activeAttempt, setActiveAttempt] = useState<OpenedAttempt | null>(null)
+  const flushRef = useRef<(() => Promise<void>) | null>(null)
   const appInfo = useQuery({
     queryKey: ['app-info'],
     queryFn: async () => {
@@ -42,14 +42,52 @@ export function App(): React.JSX.Element {
     staleTime: Infinity
   })
 
-  useKeyboardShortcuts({
-    search: () => setSearchOpen(true),
-    recent: () => setRecentOpen(true)
+  const recent = useQuery({
+    queryKey: ['recent-attempts'],
+    queryFn: async () => {
+      const result = await window.desktop.getRecentAttempts()
+      if (!result.ok) throw new Error(result.error.message)
+      return result.data
+    }
   })
 
-  const selectProblem = (problem: ProblemSummary): void => {
+  useKeyboardShortcuts({
+    search: () => setSearchOpen(true),
+    recent: () => setRecentOpen(true),
+    focusDescription: () => dispatchWorkspaceAction('description'),
+    focusEditor: () => dispatchWorkspaceAction('editor'),
+    focusPanel: () => dispatchWorkspaceAction('panel'),
+    save: () => dispatchWorkspaceAction('save'),
+    run: () => dispatchWorkspaceAction('run'),
+    submit: () => dispatchWorkspaceAction('submit')
+  })
+
+  const selectProblem = useCallback(async (problem: ProblemSummary): Promise<void> => {
+    if (selectedProblem?.titleSlug !== problem.titleSlug) {
+      await flushRef.current?.()
+    }
     setSelectedProblem(problem)
     setActiveAttempt(null)
+  }, [selectedProblem?.titleSlug])
+
+  const handleLoaded = useCallback((openedAttempt: OpenedAttempt) => {
+    setActiveAttempt(openedAttempt)
+  }, [])
+
+  const handleFlushReady = useCallback((flush: (() => Promise<void>) | null) => {
+    flushRef.current = flush
+  }, [])
+
+  const selectRecent = (attempt: RecentAttempt): void => {
+    void selectProblem({
+      frontendId: attempt.problemId,
+      title: attempt.title,
+      titleSlug: attempt.titleSlug,
+      difficulty: attempt.difficulty,
+      isPaidOnly: false,
+      topicTags: []
+    })
+    setRecentOpen(false)
   }
 
   return (
@@ -67,15 +105,20 @@ export function App(): React.JSX.Element {
           style={{ gridTemplateColumns: sidebarCollapsed ? 'minmax(0,1fr)' : '232px minmax(0,1fr)' }}
         >
           <RecentSidebar
-            attempts={[]}
-            activeProblemId={activeAttempt?.problemId ?? selectedProblem?.frontendId ?? null}
+            attempts={recent.data?.attempts ?? []}
+            activeProblemId={activeAttempt?.attempt.problemId ?? selectedProblem?.frontendId ?? null}
             collapsed={sidebarCollapsed}
-            onSelect={setActiveAttempt}
+            onSelect={selectRecent}
             onOpenRecent={() => setRecentOpen(true)}
           />
 
           {selectedProblem ? (
-            <ProblemPreview problemSummary={selectedProblem} onOpenSearch={() => setSearchOpen(true)} />
+            <ProblemWorkspace
+              problemSummary={selectedProblem}
+              onLoaded={handleLoaded}
+              onFlushReady={handleFlushReady}
+              onSearch={() => setSearchOpen(true)}
+            />
           ) : (
             <EmptyWorkspace onSearch={() => setSearchOpen(true)} />
           )}
@@ -88,7 +131,11 @@ export function App(): React.JSX.Element {
           onSettings={() => setUtilityView('settings')}
         />
 
-        <SearchPalette open={searchOpen} onOpenChange={setSearchOpen} onSelect={selectProblem} />
+        <SearchPalette
+          open={searchOpen}
+          onOpenChange={setSearchOpen}
+          onSelect={(problem) => void selectProblem(problem)}
+        />
 
         <Dialog open={recentOpen} onOpenChange={setRecentOpen}>
           <DialogContent className="max-w-md">
@@ -96,11 +143,31 @@ export function App(): React.JSX.Element {
               <DialogTitle>Recent problems</DialogTitle>
               <DialogDescription>Attempts from the last 30 days appear here.</DialogDescription>
             </DialogHeader>
-            <div className="grid place-items-center border-y border-border py-10 text-center">
-              <History className="size-5 text-muted" aria-hidden="true" />
-              <p className="mt-3 text-sm text-foreground">No recent problems</p>
-              <p className="mt-1 text-xs text-muted">Search for a problem to begin.</p>
-            </div>
+            {recent.data?.attempts.length ? (
+              <ol className="max-h-80 divide-y divide-border overflow-y-auto border-y border-border">
+                {recent.data.attempts.map((attempt) => (
+                  <li key={`${attempt.accountKey}:${attempt.problemId}`}>
+                    <button
+                      type="button"
+                      className="w-full px-2 py-3 text-left transition-colors hover:bg-surface-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                      onClick={() => selectRecent(attempt)}
+                    >
+                      <span className="flex items-center gap-2 text-sm">
+                        <span className="font-mono text-xs text-muted">{attempt.problemId}</span>
+                        <span className="truncate">{attempt.title}</span>
+                        <span className="ml-auto text-[11px] text-muted">{attempt.difficulty}</span>
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <div className="grid place-items-center border-y border-border py-10 text-center">
+                <History className="size-5 text-muted" aria-hidden="true" />
+                <p className="mt-3 text-sm text-foreground">No recent problems</p>
+                <p className="mt-1 text-xs text-muted">Search for a problem to begin.</p>
+              </div>
+            )}
           </DialogContent>
         </Dialog>
 
@@ -166,6 +233,10 @@ export function App(): React.JSX.Element {
       </div>
     </TooltipProvider>
   )
+}
+
+function dispatchWorkspaceAction(action: 'description' | 'editor' | 'panel' | 'save' | 'run' | 'submit'): void {
+  window.dispatchEvent(new CustomEvent('leetcode:workspace-action', { detail: action }))
 }
 
 function ConnectionRow({

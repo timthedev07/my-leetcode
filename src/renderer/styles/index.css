@@ -163,6 +163,41 @@ textarea {
   text-align: left;
 }
 
+.workspace-resize-handle {
+  position: relative;
+  z-index: 10;
+  flex: 0 0 auto;
+  background: var(--border);
+  outline: none;
+  transition: background-color 120ms ease;
+}
+
+.workspace-resize-handle:hover,
+.workspace-resize-handle:focus-visible,
+.workspace-resize-handle[data-resize-handle-active] {
+  background: color-mix(in srgb, var(--accent) 65%, var(--border));
+}
+
+.workspace-resize-handle-horizontal {
+  width: 1px;
+}
+
+.workspace-resize-handle-horizontal::after {
+  position: absolute;
+  inset: 0 -4px;
+  content: '';
+}
+
+.workspace-resize-handle-vertical {
+  height: 1px;
+}
+
+.workspace-resize-handle-vertical::after {
+  position: absolute;
+  inset: -4px 0;
+  content: '';
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

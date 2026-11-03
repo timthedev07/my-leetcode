@@ -1,13 +1,13 @@
 import { ChevronsUp, Clock3 } from 'lucide-react'
-import type { Attempt } from '@shared/types'
+import type { RecentAttempt } from '@shared/types'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 type RecentSidebarProps = {
-  attempts: Attempt[]
+  attempts: RecentAttempt[]
   activeProblemId: string | null
   collapsed: boolean
-  onSelect: (attempt: Attempt) => void
+  onSelect: (attempt: RecentAttempt) => void
   onOpenRecent: () => void
 }
 
