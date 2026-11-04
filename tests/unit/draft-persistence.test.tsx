@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react'
-import type { RefObject } from 'react'
+import { StrictMode, type RefObject } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Attempt, PersistedEditorState } from '@shared/types'
 import type { CppEditorHandle } from '@/components/editor/cpp-editor'
@@ -149,5 +149,38 @@ describe('draft persistence', () => {
 
     expect(result.current.status).toBe('error')
     expect(result.current.errorMessage).toContain('did not complete')
+  })
+
+  it('updates to Saved when React Strict Mode remounts its effects', async () => {
+    const saveAttempt = vi.fn(async () => ({ ok: true as const, data: true as const }))
+    Object.defineProperty(window, 'desktop', {
+      configurable: true,
+      value: {
+        saveAttempt,
+        queueAttemptSave: vi.fn()
+      }
+    })
+    const editorRef: RefObject<CppEditorHandle | null> = {
+      current: {
+        focus: vi.fn(),
+        revealLine: vi.fn(),
+        getEditorState: () => editorState,
+        formatDocument: vi.fn(async () => undefined),
+        undo: vi.fn(),
+        redo: vi.fn()
+      }
+    }
+    const { result } = renderHook(() => useDraftPersistence(attempt, editorRef, vi.fn()), {
+      wrapper: StrictMode
+    })
+
+    act(() => result.current.markDirty('int main() {}'))
+    await act(async () => {
+      vi.advanceTimersByTime(500)
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(result.current.status).toBe('saved')
   })
 })

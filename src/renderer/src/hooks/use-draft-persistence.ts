@@ -41,6 +41,7 @@ export function useDraftPersistence(
   }, [onSaved])
 
   useEffect(() => {
+    mountedRef.current = true
     return () => {
       mountedRef.current = false
       if (debounceTimerRef.current) window.clearTimeout(debounceTimerRef.current)

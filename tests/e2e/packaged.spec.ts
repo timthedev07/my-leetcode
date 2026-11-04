@@ -77,6 +77,7 @@ test('the packaged editor supports Vim and offline C++ formatting', async () => 
     await page.keyboard.insertText(
       'class Solution{public:int solve(vector<int>& nums){int total=0;return total;}};'
     )
+    await expect(page.getByText('Saved', { exact: true })).toBeVisible({ timeout: 10_000 })
     await application.evaluate(({ session }) => {
       session.defaultSession.enableNetworkEmulation({ offline: true })
     })
