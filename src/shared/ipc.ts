@@ -1,6 +1,7 @@
 export const IPC = {
   appInfo: 'app:info',
   appOpenExternal: 'app:open-external',
+  appClipboardWrite: 'app:clipboard-write',
   appPrepareQuit: 'app:prepare-quit',
   appFlushComplete: 'app:flush-complete',
   leetcodeSearch: 'leetcode:search',
@@ -32,6 +33,7 @@ export const IPC = {
   githubBranches: 'github:branches',
   githubSettings: 'github:settings',
   githubSaveSettings: 'github:save-settings',
+  githubProgress: 'github:progress',
   githubPrepareSync: 'github:prepare-sync',
   githubExecuteSync: 'github:execute-sync',
   editorPreferencesGet: 'editor:preferences:get',

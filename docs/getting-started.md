@@ -18,20 +18,32 @@ Selecting a problem creates one local attempt. Reopening the same problem restor
 
 - The problem statement and editor can be resized horizontally.
 - The editor and test panel can be resized vertically.
-- Panel sizes and the Recent sidebar state persist between launches.
+- Panel sizes and the sidebar state persist between launches.
+- **Up Next** shows the five earliest incomplete curated problems from the configured
+  repository's `data/progress.json`.
+- **Recent** continues to show locally opened attempts; it is not presented as completed progress.
 - **Run** tests the current C++ snapshot against your custom test input.
 - **Submit** performs an external LeetCode submission after confirmation.
 - **Format** applies the saved local clang-format configuration.
 - **Standard/Vim** switches keybindings without replacing the Monaco model.
-- **Sync to GitHub** is available only when a latest Accepted C++ submission can be verified.
+- **Sync to GitHub** is available only when a latest Accepted C++ submission can be verified and
+  the selected repository supports the progress JSON contract.
 
 ## First setup
 
 1. Open **Accounts** and connect LeetCode.
-2. Open **Settings** and configure the public GitHub OAuth client ID.
-3. Connect GitHub and verify a writable repository and branch.
-4. Open a problem, write C++, and submit until LeetCode records an Accepted result.
-5. Use **Sync to GitHub** and review the source and destination before confirming.
+2. Create a GitHub OAuth App with Device Flow enabled, then copy its public Client ID.
+3. Open **Settings → GitHub**, enter the Client ID, and select **Connect**.
+4. Approve the one-time device code in GitHub.
+5. Verify the connected GitHub account.
+6. Select `timthedev07/leetcode` on `dev`, or another compatible repository and branch, then select
+   **Verify destination**.
+7. Open a problem, write C++, and submit until LeetCode records an Accepted result.
+8. Use **Sync to GitHub** and review the solution and progress changes before confirming.
+
+The Up Next list loads from the configured repository when GitHub is connected. A successful
+synchronisation refreshes the list, statistics, and completion state. Clicking a recommendation
+opens the problem through the normal LeetCode workspace flow.
 
 See [LeetCode Authentication](leetcode-authentication.md), [GitHub Authentication](github-authentication.md) and [GitHub Synchronisation](github-sync.md).
 Editor behaviour is covered in [Vim and C++ Formatting](vim-and-formatting.md).

@@ -19,9 +19,14 @@ GitHub authentication uses the official device authorisation flow. Repository di
 
 Writes use:
 
-- branch tree inspection for case-insensitive conflicts;
+- branch HEAD, commit, tree and recursive blob inspection;
 - Contents API reads;
-- Contents API writes with an expected file SHA on updates.
+- Git blob, tree and commit creation;
+- non-forced Git reference updates;
+- post-write branch head confirmation.
+
+The solution file and `data/progress.json` share one commit. Concurrent reference changes are
+refetched and rebuilt within a bounded retry limit.
 
 Direct writes can be rejected by protected branches, repository rules or insufficient token permissions.
 
@@ -41,7 +46,7 @@ renderer output.
 ## External gates
 
 - Authorised LeetCode account for live judge verification.
-- Registered GitHub OAuth/GitHub App client ID for device sign-in.
+- Registered GitHub OAuth App Client ID with Device Flow enabled.
 - User-selected solutions repository and branch with write permission.
 - Apple Developer identity for signed and notarised distribution.
 

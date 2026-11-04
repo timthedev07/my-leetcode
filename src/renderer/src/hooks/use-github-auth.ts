@@ -25,6 +25,14 @@ export function useGitHubAuth(): GitHubAuthStatus {
     return window.desktop.onGitHubStatus((nextStatus) => {
       queryClient.setQueryData(['github-auth-status'], nextStatus)
       void queryClient.invalidateQueries({ queryKey: ['github-repositories'] })
+      if (nextStatus.state === 'connected') {
+        void queryClient.invalidateQueries({ queryKey: ['github-settings'] })
+        void queryClient.invalidateQueries({ queryKey: ['github-progress'] })
+        void queryClient.invalidateQueries({ queryKey: ['latest-accepted-cpp'] })
+      } else {
+        queryClient.removeQueries({ queryKey: ['github-progress'] })
+        queryClient.removeQueries({ queryKey: ['latest-accepted-cpp'] })
+      }
     })
   }, [queryClient])
 

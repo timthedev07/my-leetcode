@@ -35,14 +35,18 @@ The application will implement these boundaries with strict validation, bounded 
 
 ## GitHub feasibility
 
-GitHub’s current documentation confirms the OAuth device-authorisation flow and Content API model:
+GitHub’s current documentation confirms the OAuth device-authorisation flow and Git Data API:
 
 - device polling must respect the returned `interval` and `expires_in`;
 - the public client ID is required, while no client secret is stored in a desktop app;
 - the token response is polled until authorised, denied or expired;
-- repository contents are created or updated with the file SHA on updates.
+- branches are updated through non-forced Git reference changes;
+- solution and progress blobs share one tree and commit;
+- ignored branch conflicts require a full refetch and rebuild.
 
-The default proposed solutions repository, `timthedev07/leetcode`, was not publicly resolvable during the audit. No repository or branch will be written until the user selects and confirms a destination in Settings.
+The default solutions repository, `timthedev07/leetcode`, uses `dev` for the authoritative
+`data/progress.json` and README workflow. No repository or branch is written until the user selects
+and confirms a compatible destination in Settings.
 
 ## Compatibility decisions
 

@@ -32,6 +32,7 @@ export function App(): React.JSX.Element {
   const [recentOpen, setRecentOpen] = useState(false)
   const [accountsOpen, setAccountsOpen] = useState(false)
   const [utilityView, setUtilityView] = useState<UtilityView>(null)
+  const [docsInitialFile, setDocsInitialFile] = useState('getting-started.md')
   const [selectedProblem, setSelectedProblem] = useState<ProblemSummary | null>(null)
   const [activeAttempt, setActiveAttempt] = useState<OpenedAttempt | null>(null)
   const flushRef = useRef<(() => Promise<void>) | null>(null)
@@ -97,15 +98,17 @@ export function App(): React.JSX.Element {
       title: attempt.title,
       titleSlug: attempt.titleSlug,
       difficulty: attempt.difficulty,
+      acceptanceRate: null,
       isPaidOnly: false,
       topicTags: []
     })
     setRecentOpen(false)
   }
 
-  const openDocs = (): void => {
+  const openDocs = (initialFile = 'getting-started.md'): void => {
     void (async () => {
       await flushRef.current?.()
+      setDocsInitialFile(initialFile)
       setUtilityView('docs')
     })()
   }
@@ -134,7 +137,7 @@ export function App(): React.JSX.Element {
           }}
         >
           {utilityView === 'docs' ? (
-            <DocsPage onClose={() => setUtilityView(null)} />
+            <DocsPage initialFile={docsInitialFile} onClose={() => setUtilityView(null)} />
           ) : (
             <>
               <RecentSidebar
@@ -142,7 +145,9 @@ export function App(): React.JSX.Element {
                 activeProblemId={activeAttempt?.attempt.problemId ?? selectedProblem?.frontendId ?? null}
                 collapsed={sidebarHidden}
                 onSelect={selectRecent}
+                onSelectRecommendation={(problem) => void selectProblem(problem)}
                 onOpenRecent={() => setRecentOpen(true)}
+                onOpenSettings={() => setUtilityView('settings')}
               />
 
               {selectedProblem ? (
@@ -171,7 +176,7 @@ export function App(): React.JSX.Element {
                   : 'LeetCode disconnected'
           }
           connected={leetcode.status.state === 'connected'}
-          onDocs={openDocs}
+          onDocs={() => openDocs()}
           onSettings={() => setUtilityView('settings')}
         />
 
@@ -184,7 +189,7 @@ export function App(): React.JSX.Element {
             }
           }}
           onSelect={(problem) => void selectProblem(problem)}
-          onOpenDocs={openDocs}
+          onOpenDocs={() => openDocs()}
           onOpenSettings={() => setUtilityView('settings')}
         />
 
@@ -234,6 +239,10 @@ export function App(): React.JSX.Element {
         <GitHubSettingsDialog
           open={utilityView === 'settings'}
           onOpenChange={(open) => !open && setUtilityView(null)}
+          onOpenDocs={() => {
+            setUtilityView(null)
+            openDocs('github-authentication.md')
+          }}
         />
 
       </div>

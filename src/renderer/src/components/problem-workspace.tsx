@@ -135,6 +135,7 @@ function LoadedWorkspace({
   leetcodeConnected: boolean
 }): React.JSX.Element {
   const { problem, attempt } = opened
+  const queryClient = useQueryClient()
   const [tabFocusMode, setTabFocusMode] = useStoredState('editor:tab-focus-mode', false)
   const editorRef = useRef<CppEditorHandle>(null)
   const statementRef = useRef<HTMLElement>(null)
@@ -167,6 +168,10 @@ function LoadedWorkspace({
   const clangFormatConfig = useClangFormatConfig()
   const flushDraft = persistence.flush
   const currentDraft = persistence.draft
+  const acceptedSubmissionId =
+    judgeResult?.operation === 'submit' && judgeResult.state === 'accepted'
+      ? judgeResult.submissionId
+      : null
 
   useEffect(() => {
     mounted.current = true
@@ -177,6 +182,23 @@ function LoadedWorkspace({
       if (activeJudge.current) void window.desktop.cancelJudge(problem.titleSlug)
     }
   }, [flushDraft, onFlushReady, problem.titleSlug])
+
+  useEffect(() => {
+    if (!acceptedSubmissionId) return
+
+    const refreshSubmissionQueries = (): void => {
+      void queryClient.invalidateQueries({
+        queryKey: ['latest-accepted-cpp', problem.titleSlug]
+      })
+      void queryClient.invalidateQueries({
+        queryKey: ['submissions', problem.titleSlug]
+      })
+    }
+
+    refreshSubmissionQueries()
+    const delayedRefresh = window.setTimeout(refreshSubmissionQueries, 1_500)
+    return () => window.clearTimeout(delayedRefresh)
+  }, [acceptedSubmissionId, problem.titleSlug, queryClient])
 
   const runCode = useCallback(async (): Promise<void> => {
     if (!leetcodeConnected) {

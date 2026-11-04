@@ -141,6 +141,18 @@ SortIncludes: Never
       const input = app.page.locator('.monaco-editor textarea').first()
       await input.click({ force: true })
       await app.page.keyboard.press('Meta+A')
+      await app.page.keyboard.insertText('void solve() {')
+      await app.page.keyboard.press('Enter')
+      await app.page.keyboard.insertText('// note')
+      await app.page.keyboard.press('Enter')
+      await app.page.keyboard.insertText('continued')
+      const smartEnterText = await readEditorClipboard(app)
+      expect(smartEnterText).toContain(
+        'void solve() {\n        // note\n        // continued'
+      )
+
+      await input.click({ force: true })
+      await app.page.keyboard.press('Meta+A')
       const original =
         'class Solution{public:int solve(vector<int>& nums){int total=0;for(int x:nums){total+=x;}return total;}};'
       await app.page.keyboard.insertText(original)

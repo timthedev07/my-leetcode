@@ -16,6 +16,7 @@ const rawProblemSummarySchema = z.object({
   title: z.string(),
   titleSlug: z.string(),
   difficulty: z.string(),
+  acRate: z.number().finite().min(0).max(100).nullable().optional(),
   paidOnly: z.boolean(),
   topicTags: z.array(rawTopicTagSchema).nullable().optional()
 })
@@ -54,6 +55,7 @@ const problemDetailResponseSchema = z.object({
       title: z.string(),
       titleSlug: z.string(),
       difficulty: z.string(),
+      acRate: z.number().finite().min(0).max(100).nullable().optional(),
       isPaidOnly: z.boolean(),
       content: z.string().nullable(),
       topicTags: z.array(rawTopicTagSchema).nullable().optional(),
@@ -155,6 +157,7 @@ export class LeetCodeProblemsService {
       title: question.title,
       titleSlug: question.titleSlug,
       difficulty,
+      acceptanceRate: question.acRate ?? null,
       isPaidOnly: question.isPaidOnly,
       contentHtml: sanitiseProblemHtml(question.content ?? ''),
       topicTags,
@@ -224,6 +227,7 @@ export function normaliseProblemSummary(raw: z.infer<typeof rawProblemSummarySch
       title: raw.title,
       titleSlug: raw.titleSlug,
       difficulty: parseDifficulty(raw.difficulty),
+      acceptanceRate: raw.acRate ?? null,
       isPaidOnly: raw.paidOnly,
       topicTags: (raw.topicTags ?? []).map(normaliseTopicTag)
     })

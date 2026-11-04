@@ -17,6 +17,7 @@ export const PROBLEM_SEARCH_DOCUMENT = `
         title
         titleSlug
         difficulty
+        acRate
         paidOnly: isPaidOnly
         topicTags {
           name
@@ -35,6 +36,7 @@ export const QUESTION_DETAIL_DOCUMENT = `
       title
       titleSlug
       difficulty
+      acRate
       isPaidOnly
       content
       topicTags {
@@ -110,7 +112,6 @@ export const SUBMISSION_HISTORY_DOCUMENT = `
 export const SUBMISSION_DETAIL_DOCUMENT = `
   query submissionDetails($submissionId: Int!) {
     submissionDetails(submissionId: $submissionId) {
-      submissionId
       question {
         questionId
         questionFrontendId

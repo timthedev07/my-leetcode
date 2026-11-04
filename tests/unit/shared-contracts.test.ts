@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { ATTEMPT_CLEANUP_INTERVAL_MS } from '@shared/constants'
-import { appInfoSchema, externalUrlSchema } from '@shared/schemas'
+import { appInfoSchema, clipboardTextSchema, externalUrlSchema } from '@shared/schemas'
 import { buildContentSecurityPolicy } from '../../src/main/security/csp-policy'
 
 describe('shared contracts', () => {
@@ -10,6 +10,12 @@ describe('shared contracts', () => {
     expect(externalUrlSchema.safeParse('https://example.com').success).toBe(false)
     expect(externalUrlSchema.safeParse('file:///etc/passwd').success).toBe(false)
     expect(externalUrlSchema.safeParse('javascript:alert(1)').success).toBe(false)
+  })
+
+  it('accepts bounded text for the clipboard', () => {
+    expect(clipboardTextSchema.parse('ABCD-1234')).toBe('ABCD-1234')
+    expect(() => clipboardTextSchema.parse('')).toThrow()
+    expect(() => clipboardTextSchema.parse('x'.repeat(10_001))).toThrow()
   })
 
   it('validates app information at the IPC boundary', () => {

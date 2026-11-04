@@ -56,12 +56,6 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-button,
-input,
-textarea {
-  font: inherit;
-}
-
 button {
   cursor: default;
 }

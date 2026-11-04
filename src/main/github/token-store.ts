@@ -20,6 +20,13 @@ export type SafeStorageAdapter = {
 
 const electronSafeStorage = safeStorage as SafeStorageAdapter | undefined
 
+export type GitHubCredential = {
+  accessToken: string
+  refreshToken?: string
+  accessTokenExpiresAtMs?: number
+  refreshTokenExpiresAtMs?: number
+}
+
 export class TokenStore {
   private pendingOperation: Promise<void> = Promise.resolve()
 
@@ -29,6 +36,10 @@ export class TokenStore {
   ) {}
 
   readToken(): Promise<string | null> {
+    return this.readCredential().then((credential) => credential?.accessToken ?? null)
+  }
+
+  readCredential(): Promise<GitHubCredential | null> {
     return this.enqueue(async () => {
       await this.assertEncryptionAvailable()
 
@@ -41,11 +52,7 @@ export class TokenStore {
       }
 
       try {
-        const token = await this.decrypt(encrypted)
-        if (token.length === 0) {
-          throw new Error('The decrypted token is empty.')
-        }
-        return token
+        return parseCredential(await this.decrypt(encrypted))
       } catch (error) {
         throw storageError('GitHub credentials could not be decrypted. Reconnect GitHub.', error)
       }
@@ -53,8 +60,13 @@ export class TokenStore {
   }
 
   saveToken(token: string): Promise<void> {
+    return this.saveCredential({ accessToken: token })
+  }
+
+  saveCredential(credential: GitHubCredential): Promise<void> {
     return this.enqueue(async () => {
-      if (token.length === 0) {
+      const normalised = normaliseCredential(credential)
+      if (!normalised) {
         throw new AppError('STORAGE_FAILED', 'GitHub returned an empty access token. Reconnect GitHub.')
       }
 
@@ -62,7 +74,7 @@ export class TokenStore {
 
       let encrypted: Buffer
       try {
-        encrypted = await this.encrypt(token)
+        encrypted = await this.encrypt(JSON.stringify(normalised))
       } catch (error) {
         throw storageError('GitHub credentials could not be encrypted.', error)
       }
@@ -90,6 +102,10 @@ export class TokenStore {
   }
 
   clearToken(): Promise<void> {
+    return this.clearCredential()
+  }
+
+  clearCredential(): Promise<void> {
     return this.enqueue(async () => {
       try {
         await unlink(this.filePath)
@@ -151,6 +167,49 @@ export class TokenStore {
     }
     throw unavailableError()
   }
+}
+
+function parseCredential(value: string): GitHubCredential {
+  if (value.length === 0) {
+    throw new Error('The decrypted credential is empty.')
+  }
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(value)
+  } catch {
+    // Credentials written by older versions were plain access-token strings.
+    return { accessToken: value }
+  }
+  if (typeof parsed !== 'object' || parsed === null || !('accessToken' in parsed)) {
+    throw new Error('The decrypted credential has an unsupported format.')
+  }
+  const normalised = normaliseCredential(parsed as GitHubCredential)
+  if (!normalised) throw new Error('The decrypted credential has an empty access token.')
+  return normalised
+}
+
+function normaliseCredential(
+  credential: GitHubCredential
+): GitHubCredential | null {
+  const accessToken = credential.accessToken
+  if (!accessToken) return null
+  const result: GitHubCredential = { accessToken }
+  if (credential.refreshToken) {
+    result.refreshToken = credential.refreshToken
+  }
+  if (
+    credential.accessTokenExpiresAtMs !== undefined &&
+    Number.isFinite(credential.accessTokenExpiresAtMs)
+  ) {
+    result.accessTokenExpiresAtMs = credential.accessTokenExpiresAtMs
+  }
+  if (
+    credential.refreshTokenExpiresAtMs !== undefined &&
+    Number.isFinite(credential.refreshTokenExpiresAtMs)
+  ) {
+    result.refreshTokenExpiresAtMs = credential.refreshTokenExpiresAtMs
+  }
+  return result
 }
 
 function unavailableError(): AppError {

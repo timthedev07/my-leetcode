@@ -30,6 +30,7 @@ function problemDetail(overrides: Partial<ProblemDetail> = {}): ProblemDetail {
     title: 'Minimum Size Subarray Sum',
     titleSlug: 'minimum-size-subarray-sum',
     difficulty: 'Medium',
+    acceptanceRate: 49.2,
     isPaidOnly: false,
     topicTags: [{ name: 'Array', slug: 'array' }],
     contentHtml: '<p>Find the minimum length.</p>',

@@ -44,7 +44,7 @@ It never contains:
 
 - LeetCode cookies or CSRF values;
 - the Playwright browser profile;
-- GitHub access tokens;
+- GitHub access and refresh tokens;
 - OAuth client secrets.
 
 ## Layout preferences

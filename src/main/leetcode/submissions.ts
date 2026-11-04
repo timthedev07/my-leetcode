@@ -62,7 +62,6 @@ const submissionHistoryResponseSchema = z.object({
 const submissionDetailResponseSchema = z.object({
   submissionDetails: z
     .object({
-      submissionId: numericIdentifierSchema,
       question: z
         .object({
           questionId: numericIdentifierSchema,
@@ -209,7 +208,7 @@ export class SubmissionService {
     }
 
     return {
-      id: detail.submissionId,
+      id: submissionId,
       title: detail.question.title,
       titleSlug: detail.question.titleSlug,
       status: detail.statusCode ?? null,

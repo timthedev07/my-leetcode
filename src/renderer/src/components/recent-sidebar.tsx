@@ -1,5 +1,6 @@
 import { ChevronsUp, Clock3 } from 'lucide-react'
-import type { RecentAttempt } from '@shared/types'
+import type { ProblemSummary, RecentAttempt } from '@shared/types'
+import { UpNextSection } from '@/components/up-next-section'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -8,7 +9,9 @@ type RecentSidebarProps = {
   activeProblemId: string | null
   collapsed: boolean
   onSelect: (attempt: RecentAttempt) => void
+  onSelectRecommendation: (problem: ProblemSummary) => void
   onOpenRecent: () => void
+  onOpenSettings: () => void
 }
 
 export function RecentSidebar({
@@ -16,12 +19,20 @@ export function RecentSidebar({
   activeProblemId,
   collapsed,
   onSelect,
-  onOpenRecent
+  onSelectRecommendation,
+  onOpenRecent,
+  onOpenSettings
 }: RecentSidebarProps): React.JSX.Element | null {
   if (collapsed) return null
 
   return (
-    <aside className="flex min-h-0 flex-col border-r border-border bg-surface/35" aria-label="Recent problems">
+    <aside className="flex min-h-0 flex-col border-r border-border bg-surface/35" aria-label="Problems">
+      <UpNextSection
+        activeProblemId={activeProblemId}
+        onSelect={onSelectRecommendation}
+        onOpenSettings={onOpenSettings}
+      />
+
       <div className="flex h-10 shrink-0 items-center px-3">
         <h2 className="text-xs font-medium text-muted">Recent</h2>
         <Button

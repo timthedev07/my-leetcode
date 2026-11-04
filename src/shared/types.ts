@@ -13,6 +13,7 @@ export type ErrorCode =
   | 'API_CHANGED'
   | 'JUDGE_FAILED'
   | 'GITHUB_CONFLICT'
+  | 'PROGRESS_UNAVAILABLE'
   | 'STORAGE_FAILED'
   | 'UNKNOWN'
 
@@ -36,6 +37,7 @@ export type ProblemSummary = {
   title: string
   titleSlug: string
   difficulty: Difficulty
+  acceptanceRate: number | null
   isPaidOnly: boolean
   topicTags: TopicTag[]
 }
@@ -209,9 +211,22 @@ export type GitHubBranch = {
 export type GitHubSyncPreview = {
   sourceSubmissionId: string
   frontendProblemId: string
+  problemName: string
+  problemSlug: string
+  difficulty: Difficulty
+  repository: string
+  branch: string
   path: string
   existingPath: string | null
   identical: boolean
+  solutionAction: 'create' | 'update' | 'unchanged'
+  previousDone: boolean
+  nextDone: true
+  curated: boolean
+  phase: number | null
+  order: number | null
+  progressAction: 'update' | 'add' | 'unchanged'
+  changedFiles: string[]
   requiresOverwriteConfirmation: boolean
   problemUrl: string
   sourceCode: string
@@ -223,9 +238,38 @@ export type GitHubSyncOutcome = {
   result: 'created' | 'updated' | 'already-synchronised'
   submissionId: string
   path: string
+  solutionAction: 'create' | 'update' | 'unchanged'
+  progressAction: 'update' | 'add' | 'unchanged'
+  changedFiles: string[]
   commitSha: string | null
   fileUrl: string
   commitUrl: string | null
+  readmeStatus: 'pending' | 'not-needed' | 'not-applicable'
+}
+
+export type ProgressStatistics = {
+  completed: number
+  targetCount: number
+  percentage: number
+  totalCompleted: number
+  additionalCompleted: number
+}
+
+export type RecommendedProblem = {
+  id: number
+  name: string
+  slug: string
+  difficulty: Difficulty
+  phase: number
+  order: number
+}
+
+export type GitHubProgressOverview = {
+  repository: string
+  branch: string
+  revision: string
+  statistics: ProgressStatistics
+  recommendations: RecommendedProblem[]
 }
 
 export type GitHubSettings = {

@@ -49,7 +49,9 @@ and request headers are not logged. Production builds do not write this file.
 
 ## Tests
 
-- Unit tests cover search ranking, retention boundaries, autosave debounce, judge state, accepted-submission selection, GitHub commit construction, duplicate detection, token encryption and repository permissions.
+- Unit tests cover search ranking, retention boundaries, autosave debounce, judge state,
+  accepted-submission selection, atomic GitHub commit construction, progress validation,
+  recommendations, conflict retries, token encryption and refresh, and repository permissions.
 - Editor tests cover real clang-format output, stale formatting results, `.clang-format` persistence, Vim mode transitions and shortcut precedence.
 - Integration tests cover GraphQL normalisation, auth state transitions, judge polling/cancellation and GitHub REST boundaries.
 - Accessibility tests cover keyboard registries and focusable search interactions.

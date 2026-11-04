@@ -7,7 +7,11 @@ import {
   type FetchTransport,
   type GitHubTokenStore
 } from '../../src/main/github/auth'
-import { TokenStore, type SafeStorageAdapter } from '../../src/main/github/token-store'
+import {
+  TokenStore,
+  type GitHubCredential,
+  type SafeStorageAdapter
+} from '../../src/main/github/token-store'
 
 const temporaryDirectories: string[] = []
 
@@ -25,17 +29,18 @@ function jsonResponse(payload: unknown, status = 200): Response {
 }
 
 function createTokenStore(): GitHubTokenStore & {
-  saveToken: ReturnType<typeof vi.fn>
-  clearToken: ReturnType<typeof vi.fn>
+  readCredential: ReturnType<typeof vi.fn>
+  saveCredential: ReturnType<typeof vi.fn>
+  clearCredential: ReturnType<typeof vi.fn>
 } {
-  let token: string | null = null
+  let credential: GitHubCredential | null = null
   return {
-    readToken: vi.fn(async () => token),
-    saveToken: vi.fn(async (nextToken: string) => {
-      token = nextToken
+    readCredential: vi.fn(async () => credential),
+    saveCredential: vi.fn(async (nextCredential: GitHubCredential) => {
+      credential = nextCredential
     }),
-    clearToken: vi.fn(async () => {
-      token = null
+    clearCredential: vi.fn(async () => {
+      credential = null
     })
   }
 }
@@ -120,8 +125,8 @@ describe('GitHub device authorisation', () => {
       authorisation.expiresInSeconds
     )
 
-    expect(tokens.saveToken).toHaveBeenCalledOnce()
-    expect(tokens.saveToken).toHaveBeenCalledWith('opaque-token')
+    expect(tokens.saveCredential).toHaveBeenCalledOnce()
+    expect(tokens.saveCredential).toHaveBeenCalledWith({ accessToken: 'opaque-token' })
     expect(status).toEqual({
       state: 'connected',
       username: 'timthedev07',
@@ -143,7 +148,7 @@ describe('GitHub device authorisation', () => {
     await expect(service.pollDeviceAuthorisation('device-code', 0, 900)).rejects.toMatchObject({
       code: 'ACCESS_DENIED'
     })
-    expect(tokens.saveToken).not.toHaveBeenCalled()
+    expect(tokens.saveCredential).not.toHaveBeenCalled()
   })
 
   it('reports an expired device code without storing a token', async () => {
@@ -156,7 +161,7 @@ describe('GitHub device authorisation', () => {
     await expect(service.pollDeviceAuthorisation('device-code', 0, 900)).rejects.toMatchObject({
       code: 'AUTH_EXPIRED'
     })
-    expect(tokens.saveToken).not.toHaveBeenCalled()
+    expect(tokens.saveCredential).not.toHaveBeenCalled()
   })
 
   it('can be cancelled before polling starts', async () => {
@@ -169,6 +174,53 @@ describe('GitHub device authorisation', () => {
       service.pollDeviceAuthorisation('device-code', 1, 900, controller.signal)
     ).rejects.toMatchObject({ name: 'AbortError' })
     expect(transport).not.toHaveBeenCalled()
+  })
+
+  it('refreshes and rotates expiring credentials without exposing them to callers', async () => {
+    const transport = vi.fn<FetchTransport>().mockResolvedValueOnce(
+      jsonResponse({
+        access_token: 'refreshed-access-token',
+        expires_in: 900,
+        refresh_token: 'refreshed-refresh-token',
+        refresh_token_expires_in: 15_000
+      })
+    )
+    const tokens = createTokenStore()
+    await tokens.saveCredential({
+      accessToken: 'expired-access-token',
+      refreshToken: 'old-refresh-token',
+      accessTokenExpiresAtMs: Date.now() - 1,
+      refreshTokenExpiresAtMs: Date.now() + 60_000
+    })
+    const service = new GitHubAuthService(transport, () => 'client-id', tokens)
+
+    await expect(service.getAccessToken()).resolves.toBe('refreshed-access-token')
+
+    const request = transport.mock.calls[0]?.[1]?.body as URLSearchParams
+    expect(request.get('grant_type')).toBe('refresh_token')
+    expect(request.get('refresh_token')).toBe('old-refresh-token')
+    expect(tokens.saveCredential).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        accessToken: 'refreshed-access-token',
+        refreshToken: 'refreshed-refresh-token'
+      })
+    )
+  })
+
+  it('clears unusable refresh credentials and requests reauthorisation', async () => {
+    const transport = vi
+      .fn<FetchTransport>()
+      .mockResolvedValueOnce(jsonResponse({ error: 'bad_refresh_token' }))
+    const tokens = createTokenStore()
+    await tokens.saveCredential({
+      accessToken: 'expired-access-token',
+      refreshToken: 'bad-refresh-token',
+      accessTokenExpiresAtMs: Date.now() - 1
+    })
+    const service = new GitHubAuthService(transport, () => 'client-id', tokens)
+
+    await expect(service.getAccessToken()).rejects.toMatchObject({ code: 'AUTH_EXPIRED' })
+    expect(tokens.clearCredential).toHaveBeenCalled()
   })
 })
 
@@ -206,5 +258,25 @@ describe('GitHub token storage', () => {
           'Secure credential storage is unavailable. Unlock your system keychain and restart the app.'
       })
     )
+  })
+
+  it('round-trips refresh credentials without writing plaintext', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'leetcode-desktop-github-'))
+    temporaryDirectories.push(directory)
+    const tokenPath = join(directory, 'github-token.bin')
+    const store = new TokenStore(tokenPath, createEncryptedAdapter())
+    const credential: GitHubCredential = {
+      accessToken: 'access-value',
+      refreshToken: 'refresh-value',
+      accessTokenExpiresAtMs: 2_000_000,
+      refreshTokenExpiresAtMs: 3_000_000
+    }
+
+    await store.saveCredential(credential)
+
+    expect(await store.readCredential()).toEqual(credential)
+    const encryptedBytes = await readFile(tokenPath)
+    expect(encryptedBytes.toString()).not.toContain('access-value')
+    expect(encryptedBytes.toString()).not.toContain('refresh-value')
   })
 })

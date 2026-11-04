@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Braces,
+  BookOpen,
   CircleAlert,
-  ExternalLink,
+  Copy,
   Github,
   Loader2,
   LogOut,
@@ -27,11 +28,13 @@ import { useGitHubAuth } from '@/hooks/use-github-auth'
 type GitHubSettingsDialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
+  onOpenDocs: () => void
 }
 
 export function GitHubSettingsDialog({
   open,
-  onOpenChange
+  onOpenChange,
+  onOpenDocs
 }: GitHubSettingsDialogProps): React.JSX.Element {
   const queryClient = useQueryClient()
   const auth = useGitHubAuth()
@@ -169,6 +172,7 @@ export function GitHubSettingsDialog({
     },
     onSuccess: (status) => {
       queryClient.setQueryData(['github-auth-status'], status)
+      queryClient.removeQueries({ queryKey: ['github-progress'] })
       setRepository('')
       setBranch('')
       toast.success('GitHub token removed from this Mac.')
@@ -184,6 +188,7 @@ export function GitHubSettingsDialog({
     },
     onSuccess: (nextSettings) => {
       queryClient.setQueryData(['github-settings'], nextSettings)
+      void queryClient.invalidateQueries({ queryKey: ['github-progress'] })
       setSavedSettings(true)
       toast.success(`Destination confirmed: ${nextSettings.repository} · ${nextSettings.branch}`)
     },
@@ -192,6 +197,16 @@ export function GitHubSettingsDialog({
       toast.error(mutationError.message)
     }
   })
+
+  async function copyDeviceCode(): Promise<void> {
+    if (!deviceCode) return
+    const result = await window.desktop.copyText(deviceCode)
+    if (!result.ok) {
+      toast.error(result.error.message)
+      return
+    }
+    toast.success('Device code copied.')
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -237,11 +252,19 @@ export function GitHubSettingsDialog({
                     : 'Not connected'}
               </p>
             </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="ml-auto"
+              onClick={onOpenDocs}
+            >
+              <BookOpen className="size-3.5" aria-hidden="true" />
+              How to connect GitHub
+            </Button>
             {auth.state === 'connected' ? (
               <Button
                 variant="ghost"
                 size="sm"
-                className="ml-auto"
                 onClick={() => disconnect.mutate()}
                 disabled={disconnect.isPending}
               >
@@ -261,7 +284,7 @@ export function GitHubSettingsDialog({
                   id="github-client-id"
                   value={effectiveClientId}
                   onChange={(event) => setClientId(event.target.value)}
-                  placeholder="Registered GitHub App or OAuth App client ID"
+                  placeholder="Registered OAuth App client ID"
                   autoComplete="off"
                   spellCheck={false}
                   className="h-8 min-w-0 flex-1 rounded-md border border-border bg-background px-2.5 font-mono text-xs outline-none placeholder:font-sans placeholder:text-muted/60 focus-visible:border-accent/60 focus-visible:ring-2 focus-visible:ring-ring/50"
@@ -292,12 +315,10 @@ export function GitHubSettingsDialog({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => {
-                    void window.desktop.openExternal('https://github.com/login/device')
-                  }}
+                  onClick={() => void copyDeviceCode()}
                 >
-                  <ExternalLink className="size-3.5" aria-hidden="true" />
-                  Open GitHub
+                  <Copy className="size-3.5" aria-hidden="true" />
+                  Copy code
                 </Button>
                 <Button variant="ghost" size="sm" onClick={() => cancelAuth.mutate()}>
                   Cancel
@@ -408,8 +429,8 @@ export function GitHubSettingsDialog({
             <div className="mt-4 flex items-start gap-2.5 text-xs leading-5 text-muted">
               <ShieldCheck className="mt-0.5 size-4 shrink-0 text-accent/80" aria-hidden="true" />
               <p>
-                Only the public client ID is stored in settings. GitHub access tokens are encrypted
-                with macOS secret storage.
+                Only the public client ID is stored in settings. GitHub access and refresh tokens
+                are encrypted with Electron safe storage.
               </p>
             </div>
           </TabsContent>

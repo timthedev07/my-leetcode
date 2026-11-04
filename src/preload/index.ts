@@ -9,6 +9,7 @@ import type {
   GitHubAuthStatus,
   GitHubBranch,
   GitHubDeviceAuthorisation,
+  GitHubProgressOverview,
   GitHubRepository,
   GitHubSettings,
   GitHubSyncOutcome,
@@ -36,6 +37,8 @@ type ProblemSearchResult = {
 const desktopApi = {
   getAppInfo: (): Promise<IpcResult<AppInfo>> => ipcRenderer.invoke(IPC.appInfo, undefined),
   openExternal: (url: string): Promise<IpcResult<true>> => ipcRenderer.invoke(IPC.appOpenExternal, url),
+  copyText: (text: string): Promise<IpcResult<true>> =>
+    ipcRenderer.invoke(IPC.appClipboardWrite, text),
   onPrepareQuit: (listener: () => void | Promise<void>): (() => void) => {
     const onPrepare = (): void => {
       void listener()
@@ -121,6 +124,8 @@ const desktopApi = {
     ipcRenderer.invoke(IPC.githubSettings, undefined),
   saveGitHubSettings: (repository: string, branch: string): Promise<IpcResult<GitHubSettings>> =>
     ipcRenderer.invoke(IPC.githubSaveSettings, { repository, branch }),
+  getGitHubProgress: (): Promise<IpcResult<GitHubProgressOverview>> =>
+    ipcRenderer.invoke(IPC.githubProgress, undefined),
   prepareGitHubSync: (
     problemSlug: string,
     frontendProblemId: string,
@@ -131,13 +136,19 @@ const desktopApi = {
     problemSlug: string,
     frontendProblemId: string,
     difficulty: 'Easy' | 'Medium' | 'Hard',
-    confirmOverwrite: boolean
+    confirmOverwrite: boolean,
+    expectedSubmissionId: string,
+    expectedRepository: string,
+    expectedBranch: string
   ): Promise<IpcResult<GitHubSyncOutcome>> =>
     ipcRenderer.invoke(IPC.githubExecuteSync, {
       problemSlug,
       frontendProblemId,
       difficulty,
-      confirmOverwrite
+      confirmOverwrite,
+      expectedSubmissionId,
+      expectedRepository,
+      expectedBranch
     }),
   getEditorPreferences: (): Promise<IpcResult<EditorPreferences>> =>
     ipcRenderer.invoke(IPC.editorPreferencesGet, undefined),

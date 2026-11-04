@@ -32,7 +32,8 @@ describe('LeetCode problem discovery', () => {
     expect(result.problems[0]).toMatchObject({
       frontendId: '209',
       titleSlug: 'minimum-size-subarray-sum',
-      difficulty: 'Medium'
+      difficulty: 'Medium',
+      acceptanceRate: 49.2
     })
   })
 
@@ -42,6 +43,7 @@ describe('LeetCode problem discovery', () => {
       title: 'Minimum Size Subarray Sum',
       titleSlug: 'minimum-size-subarray-sum',
       difficulty: 'Medium',
+      acceptanceRate: 49.2,
       isPaidOnly: false,
       topicTags: [{ name: 'Sliding Window', slug: 'sliding-window' }]
     }

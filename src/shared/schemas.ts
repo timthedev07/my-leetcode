@@ -7,6 +7,8 @@ export const externalUrlSchema = z
     message: 'Only approved external sites may be opened.'
   })
 
+export const clipboardTextSchema = z.string().min(1).max(10_000)
+
 export const appInfoSchema = z.object({
   version: z.string().min(1),
   platform: z.enum(['aix', 'android', 'darwin', 'freebsd', 'haiku', 'linux', 'openbsd', 'sunos', 'win32', 'cygwin', 'netbsd']),
@@ -25,6 +27,7 @@ export const problemSummarySchema = z.object({
   title: z.string().min(1),
   titleSlug: z.string().regex(/^[a-z0-9-]+$/),
   difficulty: difficultySchema,
+  acceptanceRate: z.number().finite().min(0).max(100).nullable(),
   isPaidOnly: z.boolean(),
   topicTags: z.array(topicTagSchema)
 })
@@ -140,7 +143,10 @@ export const githubPrepareSyncInputSchema = z.object({
 })
 
 export const githubExecuteSyncInputSchema = githubPrepareSyncInputSchema.extend({
-  confirmOverwrite: z.boolean()
+  confirmOverwrite: z.boolean(),
+  expectedSubmissionId: z.string().regex(/^\d+$/),
+  expectedRepository: z.string().regex(/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/),
+  expectedBranch: z.string().min(1).max(255)
 })
 
 export const editorPreferencesSchema = z.object({
@@ -166,6 +172,7 @@ export const ipcResultSchema = <T extends z.ZodType>(data: T) =>
           'API_CHANGED',
           'JUDGE_FAILED',
           'GITHUB_CONFLICT',
+          'PROGRESS_UNAVAILABLE',
           'STORAGE_FAILED',
           'UNKNOWN'
         ]),

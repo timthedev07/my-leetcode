@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/command'
 import { Kbd } from '@/components/kbd'
 import { useDebouncedValue } from '@/hooks/use-debounced-value'
+import { formatAcceptanceRate } from '@/lib/utils'
 
 type SearchPaletteProps = {
   open: boolean
@@ -124,6 +125,11 @@ export function SearchPalette({
                   <span className="block truncate text-[13px] text-foreground">{problem.title}</span>
                   <span className="mt-1 flex items-center gap-2">
                     <DifficultyLabel difficulty={problem.difficulty} />
+                    {formatAcceptanceRate(problem.acceptanceRate) ? (
+                      <span className="whitespace-nowrap text-[11px] text-muted">
+                        {formatAcceptanceRate(problem.acceptanceRate)} acceptance
+                      </span>
+                    ) : null}
                     {problem.topicTags.slice(0, 2).map((tag) => (
                       <span key={tag.slug} className="truncate text-[11px] text-muted">
                         {tag.name}

@@ -12,6 +12,10 @@ import EditorWorker from 'monaco-editor/editor/editor.worker.js?worker'
 import { initVimMode, type VimAdapterInstance } from 'monaco-vim'
 import type { PersistedEditorState } from '@shared/types'
 import { clangFormat } from '@/editor/clang-format-client'
+import {
+  createSmartEnterInsertion,
+  readClangFormatIndentWidth
+} from '@/editor/editor-indentation'
 import { createSafeFormattingEdits } from '@/editor/format-model'
 
 type MonacoEnvironmentShape = {
@@ -80,6 +84,7 @@ export const CppEditor = forwardRef<CppEditorHandle, CppEditorProps>(function Cp
   const onRunRef = useRef(onRun)
   const onSubmitRef = useRef(onSubmit)
   const clangFormatRef = useRef<string | null>(clangFormatYaml ?? null)
+  const indentWidthRef = useRef(readClangFormatIndentWidth(clangFormatYaml))
   const onVimModeChangeRef = useRef(onVimModeChange)
   const onReadyRef = useRef(onReady)
   const initialEditorPropsRef = useRef({
@@ -102,6 +107,10 @@ export const CppEditor = forwardRef<CppEditorHandle, CppEditorProps>(function Cp
 
   useEffect(() => {
     clangFormatRef.current = clangFormatYaml ?? null
+    indentWidthRef.current = readClangFormatIndentWidth(clangFormatYaml)
+    const editor = editorRef.current
+    if (!editor) return
+    applyEditorIndentation(editor, indentWidthRef.current)
   }, [clangFormatYaml])
 
   useEffect(() => {
@@ -130,8 +139,9 @@ export const CppEditor = forwardRef<CppEditorHandle, CppEditorProps>(function Cp
       cursorBlinking: 'smooth',
       cursorSmoothCaretAnimation: 'on',
       padding: { top: 14, bottom: 18 },
-      tabSize: 4,
+      tabSize: indentWidthRef.current,
       insertSpaces: true,
+      detectIndentation: false,
       wordWrap: 'off',
       readOnly: initial.readOnly,
       accessibilitySupport: 'auto',
@@ -152,6 +162,52 @@ export const CppEditor = forwardRef<CppEditorHandle, CppEditorProps>(function Cp
       if (!editor.getOption(monaco.editor.EditorOption.readOnly)) onChangeRef.current?.(editor.getValue())
     })
     const blurSubscription = editor.onDidBlurEditorText(() => onBlurRef.current?.())
+    const smartEnterSubscription = editor.onKeyDown((event) => {
+      const keyboardEvent = event.browserEvent
+      if (
+        keyboardEvent.isComposing ||
+        keyboardEvent.key !== 'Enter' ||
+        keyboardEvent.metaKey ||
+        keyboardEvent.ctrlKey ||
+        keyboardEvent.altKey ||
+        keyboardEvent.shiftKey
+      ) {
+        return
+      }
+
+      const vimMode = vimStatusRef.current?.dataset.vimMode
+      if (vimMode && vimMode !== 'insert' && vimMode !== 'replace') return
+
+      const position = editor.getPosition()
+      const selection = editor.getSelection()
+      const model = editor.getModel()
+      if (!position || !model || (selection && !selection.isEmpty())) return
+
+      const insertion = createSmartEnterInsertion(
+        model.getLineContent(position.lineNumber),
+        position.column,
+        indentWidthRef.current,
+        model.getEOL()
+      )
+      if (!insertion) return
+
+      keyboardEvent.preventDefault()
+      editor.executeEdits('leetcode-desktop.smart-enter', [
+        {
+          range: new monaco.Range(
+            position.lineNumber,
+            position.column,
+            position.lineNumber,
+            position.column
+          ),
+          text: insertion.text
+        }
+      ])
+      editor.setPosition({
+        lineNumber: position.lineNumber + 1,
+        column: insertion.cursorColumn
+      })
+    })
 
     const saveAction = editor.addAction({
       id: 'leetcode-desktop.save',
@@ -203,6 +259,7 @@ export const CppEditor = forwardRef<CppEditorHandle, CppEditorProps>(function Cp
       formatProvider.dispose()
       changeSubscription.dispose()
       blurSubscription.dispose()
+      smartEnterSubscription.dispose()
       editor.dispose()
       vimAdapterRef.current = null
       modelRef.current?.dispose()
@@ -281,6 +338,7 @@ export const CppEditor = forwardRef<CppEditorHandle, CppEditorProps>(function Cp
     const previousModel = modelRef.current
     editor.setModel(nextModel)
     modelRef.current = nextModel
+    applyEditorIndentation(editor, indentWidthRef.current)
     if (previousModel && previousModel !== nextModel) previousModel.dispose()
     requestAnimationFrame(() => {
       restoreState(editor, initialState)
@@ -364,6 +422,22 @@ function createModel(
     monaco.Uri.parse(`leetcode://problem/${key}/solution.cpp`)
   )
   return model
+}
+
+function applyEditorIndentation(
+  editor: monaco.editor.IStandaloneCodeEditor,
+  indentWidth: number
+): void {
+  editor.updateOptions({
+    tabSize: indentWidth,
+    insertSpaces: true,
+    detectIndentation: false
+  })
+  editor.getModel()?.updateOptions({
+    tabSize: indentWidth,
+    indentSize: 'tabSize',
+    insertSpaces: true
+  })
 }
 
 function restoreState(

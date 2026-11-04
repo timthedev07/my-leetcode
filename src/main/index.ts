@@ -6,6 +6,7 @@ import {
   appInfoSchema,
   attemptSaveInputSchema,
   clangFormatConfigSchema,
+  clipboardTextSchema,
   editorPreferencesSchema,
   externalUrlSchema,
   githubBranchesInputSchema,
@@ -28,6 +29,7 @@ import type {
   GitHubAuthStatus,
   GitHubBranch,
   GitHubDeviceAuthorisation,
+  GitHubProgressOverview,
   GitHubRepository,
   GitHubSettings,
   GitHubSyncOutcome,
@@ -52,6 +54,7 @@ import { LeetCodeProblemsService, type ProblemSearchResult } from './leetcode/pr
 import { SubmissionService } from './leetcode/submissions'
 import { fetchWithTimeout } from './leetcode/transport'
 import { GitHubAuthService } from './github/auth'
+import { GitHubProgressService, type GitHubDestination } from './github/progress'
 import { RepositoryService, type FetchTransport } from './github/repository'
 import { GitHubSyncService } from './github/sync'
 import { TokenStore } from './github/token-store'
@@ -132,9 +135,21 @@ app.whenReady().then(() => {
   }
   const githubFetch: FetchTransport = (input, init) => fetchWithTimeout(input, init)
   const githubAuth = new GitHubAuthService(githubFetch, githubClientId, githubTokenStore)
-  const githubRepositories = new RepositoryService(() => githubTokenStore.readToken(), githubFetch)
+  const githubToken = (): Promise<string | null> => githubAuth.getAccessToken()
+  const githubRepositories = new RepositoryService(githubToken, githubFetch)
+  const getGitHubDestination = async (): Promise<GitHubDestination | null> => {
+    const repository = attempts.getSetting('github.repository')
+    const branch = attempts.getSetting('github.branch')
+    return repository && branch ? { repository, branch } : null
+  }
+  const githubProgress = new GitHubProgressService({
+    getToken: githubToken,
+    getSettings: getGitHubDestination,
+    fetch: githubFetch
+  })
   let githubPendingAuth: Promise<GitHubAuthStatus> | null = null
   let githubAuthAbort: AbortController | null = null
+  let githubSyncInFlight = false
 
   const broadcastGithubStatus = async (): Promise<void> => {
     const status = await githubAuth.getStatus()
@@ -157,6 +172,11 @@ app.whenReady().then(() => {
 
   registerValidatedHandler<string, true>(IPC.appOpenExternal, externalUrlSchema, async (url) => {
     await openExternalUrl(url)
+    return true as const
+  })
+
+  registerValidatedHandler<string, true>(IPC.appClipboardWrite, clipboardTextSchema, (text) => {
+    clipboard.writeText(text)
     return true as const
   })
 
@@ -325,8 +345,6 @@ app.whenReady().then(() => {
     }
     githubAuthAbort = new AbortController()
     const start = await githubAuth.startDeviceAuthorisation()
-    clipboard.writeText(start.userCode)
-    await openExternalUrl(start.verificationUri)
     githubPendingAuth = githubAuth
       .pollDeviceAuthorisation(
         start.deviceCode,
@@ -412,6 +430,12 @@ app.whenReady().then(() => {
     IPC.githubSaveSettings,
     githubSettingsSchema,
     async (input) => {
+      if (githubSyncInFlight) {
+        throw new AppError(
+          'GITHUB_CONFLICT',
+          'Finish the current GitHub synchronisation before changing the destination.'
+        )
+      }
       const repository = await githubRepositories.validateDestination(input.repository, input.branch)
       attempts.setSetting('github.repository', repository.fullName)
       attempts.setSetting('github.branch', input.branch)
@@ -423,17 +447,20 @@ app.whenReady().then(() => {
     }
   )
 
+  registerValidatedHandler<undefined, GitHubProgressOverview>(
+    IPC.githubProgress,
+    z.undefined(),
+    () => githubProgress.getOverview()
+  )
+
   const createSyncService = async (): Promise<GitHubSyncService> => {
     const session = await auth.getAuthenticatedSession()
     return new GitHubSyncService({
-      getToken: () => githubTokenStore.readToken(),
+      getToken: githubToken,
       repositoryService: githubRepositories,
       submissionService: new SubmissionService(session),
-      getSettings: async () => {
-        const repository = attempts.getSetting('github.repository')
-        const branch = attempts.getSetting('github.branch')
-        return repository && branch ? { repository, branch } : null
-      },
+      getSettings: getGitHubDestination,
+      progressService: githubProgress,
       fetch: githubFetch,
       onSynced: (submissionId, commitSha) => {
         attempts.setSetting('github.lastSyncedSubmissionId', submissionId)
@@ -451,15 +478,39 @@ app.whenReady().then(() => {
   registerValidatedHandler<z.infer<typeof githubExecuteSyncInputSchema>, GitHubSyncOutcome>(
     IPC.githubExecuteSync,
     githubExecuteSyncInputSchema,
-    async (input) =>
-      (await createSyncService()).execute(
-        {
-          problemSlug: input.problemSlug,
-          frontendProblemId: input.frontendProblemId,
-          difficulty: input.difficulty
-        },
-        input.confirmOverwrite
-      )
+    async (input) => {
+      if (githubSyncInFlight) {
+        throw new AppError(
+          'GITHUB_CONFLICT',
+          'A GitHub synchronisation is already in progress.'
+        )
+      }
+      githubSyncInFlight = true
+      try {
+        const destination = await getGitHubDestination()
+        if (
+          destination?.repository !== input.expectedRepository ||
+          destination.branch !== input.expectedBranch
+        ) {
+          throw new AppError(
+            'GITHUB_CONFLICT',
+            'The GitHub destination changed after the preview was prepared.',
+            'Review the synchronisation again before committing.'
+          )
+        }
+        return await (await createSyncService()).execute(
+          {
+            problemSlug: input.problemSlug,
+            frontendProblemId: input.frontendProblemId,
+            difficulty: input.difficulty
+          },
+          input.confirmOverwrite,
+          input.expectedSubmissionId
+        )
+      } finally {
+        githubSyncInFlight = false
+      }
+    }
   )
 
   registerValidatedHandler<undefined, EditorPreferences>(IPC.editorPreferencesGet, z.undefined(), () => ({

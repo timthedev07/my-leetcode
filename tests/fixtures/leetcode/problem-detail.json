@@ -5,6 +5,7 @@
     "title": "Minimum Size Subarray Sum",
     "titleSlug": "minimum-size-subarray-sum",
     "difficulty": "Medium",
+    "acRate": 49.2,
     "isPaidOnly": false,
     "content": "<p>Find the minimum length.</p><script>alert(1)</script><p><strong>Example 1:</strong></p><pre><code>Input: target = 7</code></pre><p><strong>Constraints:</strong></p><ul><li><code>1 &lt;= nums.length</code></li></ul><a href=\"javascript:alert(1)\">unsafe</a>",
     "topicTags": [

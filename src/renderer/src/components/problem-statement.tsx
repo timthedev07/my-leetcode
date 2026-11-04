@@ -3,6 +3,7 @@ import { ExternalLink } from 'lucide-react'
 import type { ProblemDetail } from '@shared/types'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { formatAcceptanceRate } from '@/lib/utils'
 
 type ProblemStatementProps = {
   problem: ProblemDetail
@@ -26,6 +27,11 @@ export const ProblemStatement = forwardRef<HTMLElement, ProblemStatementProps>(
               <span className={difficultyClass(problem.difficulty)}>{problem.difficulty}</span>
             </div>
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              {formatAcceptanceRate(problem.acceptanceRate) ? (
+                <span className="rounded border border-border bg-surface px-1.5 py-0.5 text-[10px] text-muted">
+                  {formatAcceptanceRate(problem.acceptanceRate)} acceptance
+                </span>
+              ) : null}
               {problem.topicTags.map((tag) => (
                 <span
                   key={tag.slug}

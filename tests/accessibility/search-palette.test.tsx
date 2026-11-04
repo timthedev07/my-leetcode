@@ -36,6 +36,7 @@ describe('problem search accessibility', () => {
             title: 'Minimum Size Subarray Sum',
             titleSlug: 'minimum-size-subarray-sum',
             difficulty: 'Medium' as const,
+            acceptanceRate: 49.2,
             isPaidOnly: false,
             topicTags: [{ name: 'Sliding Window', slug: 'sliding-window' }]
           }
@@ -57,6 +58,7 @@ describe('problem search accessibility', () => {
 
     await user.type(input, '209')
     await screen.findByText('Minimum Size Subarray Sum')
+    expect(screen.getByText('49.2% acceptance')).toBeInTheDocument()
     await user.keyboard('{ArrowDown}{Enter}')
 
     await waitFor(() => {
