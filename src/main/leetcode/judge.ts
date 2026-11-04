@@ -7,6 +7,7 @@ import type {
   JudgeState
 } from '@shared/types'
 import { AppError } from '../security/app-error'
+import { logDevelopmentDiagnostic } from '../development-log'
 import type { LeetCodeAuthenticatedSession } from './auth-contract'
 
 const DEFAULT_TIMEOUT_MS = 120_000
@@ -27,8 +28,10 @@ const integerLikeSchema = z.union([
     .transform((value) => Number(value))
 ])
 
-const textValueSchema = z
-  .union([z.string(), z.number().finite()])
+const scalarTextSchema = z.union([z.string(), z.number().finite()])
+const textValueSchema = scalarTextSchema.nullable().optional()
+const textCollectionSchema = z
+  .union([scalarTextSchema, z.array(scalarTextSchema)])
   .nullable()
   .optional()
 
@@ -55,8 +58,8 @@ const pollResponseSchema = z
     memory: textValueSchema,
     code_answer: z.array(z.string()).nullable().optional(),
     expected_code_answer: z.array(z.string()).nullable().optional(),
-    code_output: z.string().nullable().optional(),
-    expected_output: z.string().nullable().optional(),
+    code_output: textCollectionSchema,
+    expected_output: textCollectionSchema,
     std_output_list: z.array(z.string()).nullable().optional(),
     compare_result: z.string().nullable().optional(),
     input: z.string().nullable().optional(),
@@ -89,7 +92,13 @@ export type LeetCodeJudgeOptions = {
   maxPollIntervalMs?: number
   now?: () => number
   sleep?: Sleep
+  logger?: JudgeDiagnosticsLogger
 }
+
+type JudgeDiagnosticsLogger = (
+  event: string,
+  details: Record<string, unknown>
+) => void
 
 type ActiveOperation = {
   controller: AbortController
@@ -115,6 +124,7 @@ export class LeetCodeJudgeService {
   private readonly maxPollIntervalMs: number
   private readonly now: () => number
   private readonly sleep: Sleep
+  private readonly logger: JudgeDiagnosticsLogger
 
   constructor(
     private readonly session: LeetCodeAuthenticatedSession,
@@ -131,6 +141,7 @@ export class LeetCodeJudgeService {
     )
     this.now = options.now ?? Date.now
     this.sleep = options.sleep ?? abortableSleep
+    this.logger = options.logger ?? developmentJudgeLogger
   }
 
   async run(request: JudgeRunRequest): Promise<JudgeResult> {
@@ -209,6 +220,10 @@ export class LeetCodeJudgeService {
     }, this.timeoutMs)
     unrefTimer(timeout)
     this.activeOperations.set(snapshot.problemSlug, active)
+    this.logger('started', {
+      operation: snapshot.operation,
+      problemSlug: snapshot.problemSlug
+    })
 
     try {
       ensureNotAborted(controller.signal)
@@ -227,11 +242,21 @@ export class LeetCodeJudgeService {
         await send(csrfToken, controller.signal),
         'judge request'
       )
-      const requestId = readRequestId(snapshot.operation, acknowledgement)
+      const requestId = readRequestId(
+        snapshot.operation,
+        acknowledgement,
+        this.logger
+      )
       active.requestId = requestId
       return await this.poll(snapshot, requestId, controller.signal)
     } catch (error) {
       if (controller.signal.aborted) {
+        this.logger('interrupted', {
+          operation: snapshot.operation,
+          problemSlug: snapshot.problemSlug,
+          requestId: active.requestId || null,
+          reason: active.timedOut ? 'timed_out' : 'cancelled'
+        })
         return createInterruptedResult(
           snapshot,
           active.requestId,
@@ -239,6 +264,12 @@ export class LeetCodeJudgeService {
           this.now()
         )
       }
+      this.logger('failed', {
+        operation: snapshot.operation,
+        problemSlug: snapshot.problemSlug,
+        requestId: active.requestId || null,
+        error: describeError(error)
+      })
       throw mapJudgeError(error)
     } finally {
       clearTimeout(timeout)
@@ -267,9 +298,25 @@ export class LeetCodeJudgeService {
         continue
       }
 
-      const response = parseExternal(pollResponseSchema, attempt.value)
+      this.logger('poll response', {
+        requestId,
+        response: describeUnknownValue(attempt.value)
+      })
+      const response = parseExternal(
+        pollResponseSchema,
+        attempt.value,
+        'poll response',
+        this.logger
+      )
       if (isTerminalPollResponse(response)) {
-        return mapPollResult(snapshot, requestId, response, this.now())
+        const result = mapPollResult(snapshot, requestId, response, this.now())
+        this.logger('completed', {
+          requestId,
+          state: result.state,
+          totalCorrect: result.totalCorrect,
+          totalTestcases: result.totalTestcases
+        })
+        return result
       }
       if (!isTransientPollResponse(response)) {
         throw new AppError(
@@ -348,8 +395,17 @@ export function parseRetryAfter(value: string | null, nowMs = Date.now()): numbe
   return Math.max(0, retryAt - nowMs)
 }
 
-function readRequestId(operation: JudgeOperation, value: unknown): string {
-  const acknowledgement = parseExternal(operationAcknowledgementSchema, value)
+function readRequestId(
+  operation: JudgeOperation,
+  value: unknown,
+  logger: JudgeDiagnosticsLogger
+): string {
+  const acknowledgement = parseExternal(
+    operationAcknowledgementSchema,
+    value,
+    'request acknowledgement',
+    logger
+  )
   const requestId =
     operation === 'run' ? acknowledgement.interpret_id : acknowledgement.submission_id
   if (!requestId) {
@@ -358,6 +414,7 @@ function readRequestId(operation: JudgeOperation, value: unknown): string {
       'LeetCode did not confirm a judge request identifier.'
     )
   }
+  logger('acknowledged', { operation, requestId })
   return requestId
 }
 
@@ -458,12 +515,21 @@ function mapCaseResults(response: ParsedPollResponse): JudgeCaseResult[] {
   const expectedOutputs = response.expected_code_answer ?? []
   const inputs = response.inputs ?? []
   const compareResults = response.compare_result?.trim() ?? ''
-  const caseCount = Math.max(
+  const returnedCaseCount = Math.max(
     actualOutputs.length,
     expectedOutputs.length,
-    compareResults.length,
-    inputs.length
+    compareResults.length
   )
+  const reportedCaseCount =
+    response.total_testcases !== null &&
+    response.total_testcases !== undefined &&
+    response.total_testcases > 0
+      ? response.total_testcases
+      : returnedCaseCount
+  const caseCount =
+    returnedCaseCount > 0
+      ? Math.min(returnedCaseCount, reportedCaseCount)
+      : reportedCaseCount
   const results: JudgeCaseResult[] = []
   const fallbackInput = response.input ?? response.last_testcase ?? null
 
@@ -482,10 +548,10 @@ function mapCaseResults(response: ParsedPollResponse): JudgeCaseResult[] {
         (caseCount === 1 ? fallbackInput : null),
       expectedOutput:
         expectedOutputs[index] ??
-        (caseCount === 1 ? response.expected_output ?? null : null),
+        (caseCount === 1 ? firstOutput(response.expected_output) : null),
       actualOutput:
         actualOutputs[index] ??
-        (caseCount === 1 ? response.code_output ?? null : null)
+        (caseCount === 1 ? firstOutput(response.code_output) : null)
     })
   }
 
@@ -536,9 +602,23 @@ function createInterruptedResult(
   }
 }
 
-function parseExternal<T>(schema: z.ZodType<T>, value: unknown): T {
+function parseExternal<T>(
+  schema: z.ZodType<T>,
+  value: unknown,
+  context: string,
+  logger: JudgeDiagnosticsLogger
+): T {
   const result = schema.safeParse(value)
   if (!result.success) {
+    logger('invalid response', {
+      context,
+      issues: result.error.issues.map((issue) => ({
+        path: issue.path.join('.'),
+        code: issue.code,
+        message: issue.message
+      })),
+      response: describeUnknownValue(value)
+    })
     throw new AppError(
       'API_CHANGED',
       'LeetCode returned an unexpected judge response.',
@@ -546,6 +626,63 @@ function parseExternal<T>(schema: z.ZodType<T>, value: unknown): T {
     )
   }
   return result.data
+}
+
+const developmentJudgeLogger: JudgeDiagnosticsLogger = (
+  event,
+  details
+): void => {
+  logDevelopmentDiagnostic(
+    'leetcode:judge',
+    event,
+    details,
+    event === 'failed' || event === 'invalid response' ? 'error' : 'info'
+  )
+}
+
+function describeError(error: unknown): Record<string, unknown> {
+  if (error instanceof AppError) {
+    return {
+      name: error.name,
+      code: error.code,
+      message: error.message,
+      details: error.details ?? null
+    }
+  }
+  if (error instanceof Error) {
+    return {
+      name: error.name,
+      message: error.message
+    }
+  }
+  return { value: String(error) }
+}
+
+function describeUnknownValue(value: unknown): Record<string, unknown> {
+  if (value === null || typeof value !== 'object') {
+    return { type: describeValueType(value) }
+  }
+  if (Array.isArray(value)) {
+    return { type: describeValueType(value) }
+  }
+
+  return {
+    type: 'object',
+    fields: Object.fromEntries(
+      Object.entries(value)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, fieldValue]) => [key, describeValueType(fieldValue)])
+    )
+  }
+}
+
+function describeValueType(value: unknown): string {
+  if (value === null) return 'null'
+  if (Array.isArray(value)) {
+    const itemTypes = [...new Set(value.map(describeValueType))]
+    return `array(${itemTypes.join(' | ') || 'empty'})[${value.length}]`
+  }
+  return typeof value
 }
 
 async function parseJsonResponse(response: Response, context: string): Promise<unknown> {
@@ -694,6 +831,15 @@ function formatMetric(value: string | number | null | undefined): string | null 
   if (value === null || value === undefined) return null
   const formatted = String(value).trim()
   return formatted.length > 0 ? formatted : null
+}
+
+function firstOutput(
+  value: string | number | Array<string | number> | null | undefined
+): string | null {
+  if (Array.isArray(value)) {
+    return value.length > 0 ? String(value[0]) : null
+  }
+  return value === null || value === undefined ? null : String(value)
 }
 
 function nullableInteger(value: number | null | undefined): number | null {

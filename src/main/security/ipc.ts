@@ -2,6 +2,7 @@ import { ipcMain, type IpcMainInvokeEvent } from 'electron'
 import type { ZodType } from 'zod'
 import type { IpcResult } from '@shared/types'
 import { toSerialisedError } from './app-error'
+import { logDevelopmentDiagnostic } from '../development-log'
 
 export function registerValidatedHandler<TInput, TOutput>(
   channel: string,
@@ -23,9 +24,27 @@ export function registerValidatedHandler<TInput, TOutput>(
       const input = inputSchema.parse(rawInput)
       return { ok: true, data: await handler(input, event) }
     } catch (error) {
-      return { ok: false, error: toSerialisedError(error) }
+      const serialisedError = toSerialisedError(error)
+      logDevelopmentError(channel, serialisedError)
+      return { ok: false, error: serialisedError }
     }
   })
+}
+
+function logDevelopmentError(
+  channel: string,
+  error: ReturnType<typeof toSerialisedError>
+): void {
+  logDevelopmentDiagnostic(
+    'ipc',
+    `${channel} failed`,
+    {
+      code: error.code,
+      message: error.message,
+      ...(error.details ? { details: error.details } : {})
+    },
+    'error'
+  )
 }
 
 function isTrustedSender(event: IpcMainInvokeEvent): boolean {

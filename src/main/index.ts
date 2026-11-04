@@ -63,6 +63,7 @@ import { openExternalUrl } from './security/external-links'
 import { registerValidatedHandler } from './security/ipc'
 import { registerValidatedEvent } from './security/validated-event'
 import { createMainWindow } from './window'
+import { configureDevelopmentLogging } from './development-log'
 
 app.setName('LeetCode Desktop')
 
@@ -80,6 +81,7 @@ app.on('second-instance', () => {
 app.whenReady().then(() => {
   if (!hasSingleInstanceLock) return
   installContentSecurityPolicy()
+  configureDevelopmentLogging(app.getPath('userData'))
   process.env.PLAYWRIGHT_BROWSERS_PATH =
     process.env.PLAYWRIGHT_BROWSERS_PATH ||
     (app.isPackaged

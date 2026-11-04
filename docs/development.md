@@ -33,6 +33,20 @@ yarn package
 
 `yarn package` installs Playwright Chromium into local resources before producing arm64 DMG and ZIP artefacts.
 
+## Diagnostics
+
+Development builds print structured diagnostics to the terminal and write
+JSON-line records to:
+
+```text
+~/Library/Application Support/LeetCode Desktop/development.log
+```
+
+LeetCode judge entries include the operation, request identifier, poll state,
+response field types, validation paths and final judge state. IPC entries include
+the channel, error code and safe error details. Cookies, CSRF tokens, source code
+and request headers are not logged. Production builds do not write this file.
+
 ## Tests
 
 - Unit tests cover search ranking, retention boundaries, autosave debounce, judge state, accepted-submission selection, GitHub commit construction, duplicate detection, token encryption and repository permissions.

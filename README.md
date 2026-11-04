@@ -63,6 +63,15 @@ yarn package
 
 `yarn package` creates an arm64 DMG and ZIP in `release/`. Unsigned local builds are suitable for testing only.
 
+### Development diagnostics
+
+`yarn dev` mirrors structured diagnostics to the terminal and to
+`~/Library/Application Support/LeetCode Desktop/development.log`. Judge entries
+record the request phase, poll state, response field types, validation paths and
+terminal result. IPC failures record their channel, error code and safe details.
+The logs do not include cookies, CSRF tokens, submitted source or raw request
+headers. Diagnostics are development-only.
+
 ## Authentication
 
 ### LeetCode

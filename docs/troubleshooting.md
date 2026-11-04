@@ -22,6 +22,15 @@ The action requires a connected and validated LeetCode account. A passed custom 
 
 If judging times out, use the Cancel action and retry once. Repeated requests can trigger rate limits.
 
+For an unexpected judge response in development, inspect:
+
+```text
+~/Library/Application Support/LeetCode Desktop/development.log
+```
+
+The `leetcode:judge` entries identify the response field and validation path
+that changed without recording source code or authentication secrets.
+
 ## Vim command behaves differently
 
 `monaco-vim` implements a CodeMirror-compatible subset rather than full
@@ -61,5 +70,8 @@ Quit and relaunch the application. Local source is never stored in the renderer 
 
 ## Diagnostic information
 
-Error messages are intentionally redacted. Do not paste cookies, browser-profile contents, GitHub tokens or unredacted request headers into a public issue.
+Error messages are intentionally redacted. Development diagnostics are written
+to the path shown under **Run or Submit is unavailable**. Do not paste cookies,
+browser-profile contents, GitHub tokens or unredacted request headers into a
+public issue.
 

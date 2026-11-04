@@ -140,6 +140,38 @@ describe('LeetCode judge service', () => {
     })
   })
 
+  it('accepts array-valued output fields in current Run responses', async () => {
+    const terminal = {
+      ...(await fixture('judge-poll.json')),
+      code_answer: ['3', '4'],
+      code_output: [],
+      expected_code_answer: ['3', '4'],
+      expected_output: [],
+      compare_result: '11',
+      inputs: ['[2,7,11,15]', '9', 'extra input fragment'],
+      total_correct: 2,
+      total_testcases: 2
+    }
+    const { session } = createSession(async (_path, init) =>
+      init?.method === 'POST'
+        ? jsonResponse({ interpret_id: 'interpret-array-output' })
+        : jsonResponse(terminal)
+    )
+    const service = new LeetCodeJudgeService(session, {
+      sleep: createSleepMock()
+    })
+
+    const result = await service.run(runRequest)
+
+    expect(result).toMatchObject({
+      requestId: 'interpret-array-output',
+      state: 'passed',
+      totalCorrect: 2,
+      totalTestcases: 2
+    })
+    expect(result.cases).toHaveLength(2)
+  })
+
   it.each([
     {
       name: 'wrong answer',
