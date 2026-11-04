@@ -5,9 +5,12 @@ import {
   Circle,
   Clock3,
   Code2,
+  Copy,
   Loader2,
+  Plus,
   RotateCw,
   Square,
+  Trash2,
   X
 } from 'lucide-react'
 import { lazy, Suspense, useState } from 'react'
@@ -30,12 +33,21 @@ const CppEditor = lazy(() =>
 
 export type ExecutionTab = 'tests' | 'results' | 'submissions'
 
+export type TestCaseDraft = {
+  id: string
+  input: string
+  label?: string
+}
+
 type ExecutionPanelProps = {
   panelRef: React.RefObject<HTMLDivElement | null>
   tab: ExecutionTab
   onTabChange: (tab: ExecutionTab) => void
-  testInput: string
-  onTestInputChange: (value: string) => void
+  testCases: TestCaseDraft[]
+  onTestCaseChange: (id: string, value: string) => void
+  onAddTestCase: () => void
+  onDuplicateTestCase: (id: string) => void
+  onRemoveTestCase: (id: string) => void
   leetcodeConnected: boolean
   problemSlug: string
   judgeResult: JudgeResult | null
@@ -49,8 +61,11 @@ export function ExecutionPanel({
   panelRef,
   tab,
   onTabChange,
-  testInput,
-  onTestInputChange,
+  testCases,
+  onTestCaseChange,
+  onAddTestCase,
+  onDuplicateTestCase,
+  onRemoveTestCase,
   leetcodeConnected,
   problemSlug,
   judgeResult,
@@ -97,17 +112,13 @@ export function ExecutionPanel({
           </TabsList>
         </div>
 
-        <TabsContent value="tests" className="m-0 min-h-0 flex-1 p-3.5">
-          <label className="sr-only" htmlFor="custom-test-input">
-            Custom test cases
-          </label>
-          <textarea
-            id="custom-test-input"
-            value={testInput}
-            onChange={(event) => onTestInputChange(event.target.value)}
-            spellCheck={false}
-            className="h-full min-h-24 w-full resize-none rounded-md border border-border bg-background/55 p-3.5 font-mono text-xs leading-5 text-foreground outline-none placeholder:text-muted/60 focus-visible:border-accent/60 focus-visible:ring-1 focus-visible:ring-accent/40"
-            placeholder="Enter test inputs using LeetCode’s line-delimited format."
+        <TabsContent value="tests" className="m-0 min-h-0 flex-1">
+          <TestCaseEditor
+            cases={testCases}
+            onChange={onTestCaseChange}
+            onAdd={onAddTestCase}
+            onDuplicate={onDuplicateTestCase}
+            onRemove={onRemoveTestCase}
           />
         </TabsContent>
 
@@ -130,6 +141,90 @@ export function ExecutionPanel({
         </TabsContent>
       </Tabs>
     </section>
+  )
+}
+
+function TestCaseEditor({
+  cases,
+  onChange,
+  onAdd,
+  onDuplicate,
+  onRemove
+}: {
+  cases: TestCaseDraft[]
+  onChange: (id: string, value: string) => void
+  onAdd: () => void
+  onDuplicate: (id: string) => void
+  onRemove: (id: string) => void
+}): React.JSX.Element {
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="flex h-9 shrink-0 items-center border-b border-border/70 px-3.5">
+        <span className="text-[11px] text-muted">
+          {cases.length} {cases.length === 1 ? 'case' : 'cases'}
+        </span>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="ml-auto h-7 px-2 text-[11px]"
+          onClick={onAdd}
+        >
+          <Plus className="size-3.5" aria-hidden="true" />
+          Add case
+        </Button>
+      </div>
+
+      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
+        {cases.map((testCase, index) => (
+          <section
+            key={testCase.id}
+            className="overflow-hidden rounded-md border border-border bg-background/35"
+            aria-labelledby={`test-case-${testCase.id}`}
+          >
+            <div className="flex h-8 items-center border-b border-border/70 bg-surface/35 px-2.5">
+              <span
+                id={`test-case-${testCase.id}`}
+                className="text-[11px] font-medium text-foreground"
+              >
+                {testCase.label ?? `Case ${index + 1}`}
+              </span>
+              <div className="ml-auto flex items-center gap-0.5">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-6"
+                  aria-label={`Duplicate case ${index + 1}`}
+                  onClick={() => onDuplicate(testCase.id)}
+                >
+                  <Copy className="size-3" aria-hidden="true" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-6 text-muted hover:text-destructive"
+                  aria-label={`Remove case ${index + 1}`}
+                  disabled={cases.length === 1}
+                  onClick={() => onRemove(testCase.id)}
+                >
+                  <Trash2 className="size-3" aria-hidden="true" />
+                </Button>
+              </div>
+            </div>
+            <label className="sr-only" htmlFor={`test-case-input-${testCase.id}`}>
+              {testCase.label ?? `Case ${index + 1}`} input
+            </label>
+            <textarea
+              id={`test-case-input-${testCase.id}`}
+              value={testCase.input}
+              onChange={(event) => onChange(testCase.id, event.target.value)}
+              spellCheck={false}
+              className="min-h-16 w-full resize-y bg-transparent px-3 py-2 font-mono text-xs leading-5 text-foreground outline-none placeholder:text-muted/50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/35"
+              placeholder="Input values, one per line"
+            />
+          </section>
+        ))}
+      </div>
+    </div>
   )
 }
 
@@ -185,30 +280,42 @@ function JudgeResultPanel({
     )
   }
 
+  const passedCases = result.cases.filter((testCase) => testCase.correct === true).length
+
   return (
-    <div className="p-3">
-      <div className="flex items-center gap-2 border-b border-border pb-2.5">
-        <ResultIcon state={result.state} />
-        <div>
-          <p className="text-sm font-medium">{resultHeading(result)}</p>
-          <p className="mt-0.5 text-[11px] text-muted">
-            {result.operation === 'run' ? 'Custom test run' : 'Submission'}
-            {result.submissionId ? ` · #${result.submissionId}` : ''}
-            {result.totalCorrect !== null && result.totalTestcases !== null
-              ? ` · ${result.totalCorrect}/${result.totalTestcases} cases`
-              : ''}
-          </p>
+    <div className="space-y-3 p-3">
+      <section className="overflow-hidden rounded-md border border-border bg-surface/45">
+        <div className="flex items-center gap-2.5 px-3 py-2.5">
+          <ResultIcon state={result.state} />
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium">{resultHeading(result)}</p>
+            <p className="mt-0.5 text-[11px] text-muted">
+              {result.operation === 'run' ? 'Custom test run' : 'Submission'}
+              {result.submissionId ? ` · #${result.submissionId}` : ''}
+            </p>
+          </div>
+          <div className="ml-auto flex items-center gap-3 text-[11px] text-muted">
+            {result.runtime ? (
+              <span className="flex items-center gap-1">
+                <Clock3 className="size-3" aria-hidden="true" />
+                {result.runtime}
+              </span>
+            ) : null}
+            {result.memory ? <span>{result.memory}</span> : null}
+          </div>
         </div>
-        <div className="ml-auto flex items-center gap-3 text-[11px] text-muted">
-          {result.runtime ? (
-            <span className="flex items-center gap-1">
-              <Clock3 className="size-3" aria-hidden="true" />
-              {result.runtime}
-            </span>
-          ) : null}
-          {result.memory ? <span>{result.memory}</span> : null}
-        </div>
-      </div>
+        {result.cases.length > 0 ? (
+          <div className="grid grid-cols-3 divide-x divide-border border-t border-border">
+            <ResultMetric label="Cases" value={String(result.cases.length)} />
+            <ResultMetric label="Passed" value={String(passedCases)} emphasis="positive" />
+            <ResultMetric
+              label="Failed"
+              value={String(result.cases.length - passedCases)}
+              emphasis={passedCases < result.cases.length ? 'negative' : undefined}
+            />
+          </div>
+        ) : null}
+      </section>
 
       {result.compileError ? (
         <div className="mt-3">
@@ -226,10 +333,13 @@ function JudgeResultPanel({
       ) : null}
 
       {result.cases.length > 0 ? (
-        <ol className="mt-3 space-y-2">
+        <ol className="space-y-2">
           {result.cases.map((testCase) => (
-            <li key={testCase.caseNumber} className="rounded-md border border-border bg-background/35 p-2.5">
-              <div className="flex items-center gap-2">
+            <li
+              key={testCase.caseNumber}
+              className="overflow-hidden rounded-md border border-border bg-background/35"
+            >
+              <div className="flex h-8 items-center gap-2 border-b border-border/70 bg-surface/35 px-2.5">
                 {testCase.correct === true ? (
                   <Check className="size-3.5 text-emerald-400" aria-label="Passed" />
                 ) : testCase.correct === false ? (
@@ -238,15 +348,36 @@ function JudgeResultPanel({
                   <Circle className="size-3 text-muted" aria-hidden="true" />
                 )}
                 <span className="text-xs">Case {testCase.caseNumber}</span>
-                <span className="ml-auto text-[10px] text-muted">{testCase.statusDisplay ?? 'Completed'}</span>
+                <span
+                  className={cn(
+                    'ml-auto rounded px-1.5 py-0.5 text-[10px]',
+                    testCase.correct === true
+                      ? 'bg-emerald-400/8 text-emerald-300/85'
+                      : testCase.correct === false
+                        ? 'bg-rose-400/8 text-rose-300/85'
+                        : 'bg-surface-hover text-muted'
+                  )}
+                >
+                  {testCase.statusDisplay ?? 'Completed'}
+                </span>
               </div>
-              {testCase.actualOutput ? (
-                <div className="mt-2 grid gap-1 font-mono text-[10px] leading-4">
-                  {testCase.input ? <OutputRow label="Input" value={testCase.input} /> : null}
-                  {testCase.expectedOutput ? <OutputRow label="Expected" value={testCase.expectedOutput} /> : null}
-                  <OutputRow label="Output" value={testCase.actualOutput} />
+              {testCase.actualOutput !== null ? (
+                <div className="grid gap-3 p-3 min-[560px]:grid-cols-2">
+                  {testCase.input !== null ? <CaseField label="Input" value={testCase.input} /> : null}
+                  {testCase.expectedOutput !== null ? (
+                    <CaseField label="Expected" value={testCase.expectedOutput} />
+                  ) : null}
+                  <CaseField
+                    label="Output"
+                    value={testCase.actualOutput}
+                    className="min-[560px]:col-span-2"
+                  />
                 </div>
-              ) : null}
+              ) : (
+                <p className="px-3 py-2.5 text-xs text-muted">
+                  No case output was returned by LeetCode.
+                </p>
+              )}
             </li>
           ))}
         </ol>
@@ -459,11 +590,46 @@ function ReadOnlySubmissionCode({ submission }: { submission: SubmissionDetail }
   )
 }
 
-function OutputRow({ label, value }: { label: string; value: string }): React.JSX.Element {
+function CaseField({
+  label,
+  value,
+  className
+}: {
+  label: string
+  value: string
+  className?: string
+}): React.JSX.Element {
   return (
-    <div className="grid grid-cols-[62px_1fr] gap-2">
-      <span className="text-muted">{label}</span>
-      <span className="whitespace-pre-wrap break-all text-foreground/85">{value}</span>
+    <div className={cn('min-w-0', className)}>
+      <p className="mb-1 text-[10px] text-muted">{label}</p>
+      <pre className="max-h-24 overflow-auto whitespace-pre-wrap break-words rounded border border-border/70 bg-background/60 px-2.5 py-2 font-mono text-[10px] leading-5 text-foreground/85">
+        {value}
+      </pre>
+    </div>
+  )
+}
+
+function ResultMetric({
+  label,
+  value,
+  emphasis
+}: {
+  label: string
+  value: string
+  emphasis?: 'positive' | 'negative' | undefined
+}): React.JSX.Element {
+  return (
+    <div className="px-2 py-1.5 text-center" aria-label={`${label}: ${value}`}>
+      <p className="text-[9px] text-muted">{label}</p>
+      <p
+        className={cn(
+          'mt-0.5 font-mono text-xs text-foreground',
+          emphasis === 'positive' && 'text-emerald-300/85',
+          emphasis === 'negative' && 'text-rose-300/85'
+        )}
+      >
+        {value}
+      </p>
     </div>
   )
 }

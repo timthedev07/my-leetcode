@@ -231,11 +231,17 @@ describe('LeetCode judge service', () => {
   })
 
   it('returns a cancelled result without discarding its code snapshot', async () => {
-    const { session, request } = createSession(async (_path, init) =>
-      init?.method === 'POST'
-        ? jsonResponse({ interpret_id: 'interpret-123' })
-        : jsonResponse({ state: 'PENDING' })
-    )
+    const terminal = await fixture('judge-poll.json')
+    let runCount = 0
+    const { session, request } = createSession(async (_path, init) => {
+      if (init?.method === 'POST') {
+        runCount += 1
+        return jsonResponse({
+          interpret_id: runCount === 1 ? 'interpret-cancelled' : 'interpret-next'
+        })
+      }
+      return runCount === 1 ? jsonResponse({ state: 'PENDING' }) : jsonResponse(terminal)
+    })
     const service = new LeetCodeJudgeService(session)
 
     const pending = service.run(runRequest)
@@ -244,16 +250,22 @@ describe('LeetCode judge service', () => {
       code: 'JUDGE_FAILED'
     })
     expect(service.cancel('two-sum')).toBe(true)
+    expect(service.hasActiveOperation('two-sum')).toBe(false)
     const result = await pending
 
     expect(result).toMatchObject({
-      requestId: 'interpret-123',
+      requestId: 'interpret-cancelled',
       state: 'cancelled',
       statusDisplay: 'Cancelled',
       codeSnapshot: runRequest.typedCode,
       testInputSnapshot: runRequest.dataInput
     })
     expect(service.hasActiveOperation('two-sum')).toBe(false)
+
+    await expect(service.run(runRequest)).resolves.toMatchObject({
+      requestId: 'interpret-next',
+      state: 'passed'
+    })
   })
 
   it('maps an unauthorised judge request to AUTH_EXPIRED', async () => {

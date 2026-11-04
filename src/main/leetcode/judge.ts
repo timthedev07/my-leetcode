@@ -177,6 +177,7 @@ export class LeetCodeJudgeService {
   cancel(problemSlug: string): boolean {
     const operation = this.activeOperations.get(problemSlug)
     if (!operation) return false
+    this.activeOperations.delete(problemSlug)
     operation.controller.abort()
     return true
   }

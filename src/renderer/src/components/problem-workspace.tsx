@@ -21,7 +21,11 @@ import {
   useState
 } from 'react'
 import type { JudgeResult, OpenedAttempt, ProblemDetail, ProblemSummary } from '@shared/types'
-import { ExecutionPanel, type ExecutionTab } from '@/components/execution-panel'
+import {
+  ExecutionPanel,
+  type ExecutionTab,
+  type TestCaseDraft
+} from '@/components/execution-panel'
 import { GitHubSyncButton } from '@/components/github-sync-button'
 import {
   AlertDialog,
@@ -136,7 +140,14 @@ function LoadedWorkspace({
   const statementRef = useRef<HTMLElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
   const [editorReady, setEditorReady] = useState(false)
-  const [testInput, setTestInput] = useState(problem.exampleTestcases)
+  const [testCases, setTestCases] = useState<TestCaseDraft[]>([
+    {
+      id: window.crypto.randomUUID(),
+      input: problem.exampleTestcases,
+      label: 'Example tests'
+    }
+  ])
+  const testInput = testCases.map((testCase) => testCase.input).join('\n')
   const [executionTab, setExecutionTab] = useState<ExecutionTab>('tests')
   const [judgeResult, setJudgeResult] = useState<JudgeResult | null>(null)
   const [judgeError, setJudgeError] = useState<string | null>(null)
@@ -170,13 +181,14 @@ function LoadedWorkspace({
       setJudgeError('Connect LeetCode before running tests.')
       return
     }
-    if (judgeBusy) return
+    if (activeJudge.current) return
     const generation = ++judgeGeneration.current
     activeJudge.current = 'run'
     setJudgeBusy('run')
     setJudgeError(null)
     setExecutionTab('results')
     await flushDraft()
+    await window.desktop.cancelJudge(problem.titleSlug)
 
     const result = await window.desktop.runCode(
       problem.titleSlug,
@@ -192,7 +204,7 @@ function LoadedWorkspace({
       return
     }
     setJudgeResult(result.data)
-  }, [currentDraft, flushDraft, judgeBusy, leetcodeConnected, problem.internalId, problem.titleSlug, testInput])
+  }, [currentDraft, flushDraft, leetcodeConnected, problem.internalId, problem.titleSlug, testInput])
 
   const submitCode = useCallback(async (): Promise<void> => {
     if (!leetcodeConnected) {
@@ -200,7 +212,7 @@ function LoadedWorkspace({
       setJudgeError('Connect LeetCode before submitting.')
       return
     }
-    if (judgeBusy) return
+    if (activeJudge.current) return
     setSubmitConfirmationOpen(false)
     const generation = ++judgeGeneration.current
     activeJudge.current = 'submit'
@@ -208,6 +220,7 @@ function LoadedWorkspace({
     setJudgeError(null)
     setExecutionTab('results')
     await flushDraft()
+    await window.desktop.cancelJudge(problem.titleSlug)
 
     const result = await window.desktop.submitCode(problem.titleSlug, problem.internalId, currentDraft)
     if (generation !== judgeGeneration.current || !mounted.current) return
@@ -218,7 +231,7 @@ function LoadedWorkspace({
       return
     }
     setJudgeResult(result.data)
-  }, [currentDraft, flushDraft, judgeBusy, leetcodeConnected, problem.internalId, problem.titleSlug])
+  }, [currentDraft, flushDraft, leetcodeConnected, problem.internalId, problem.titleSlug])
 
   const cancelJudge = useCallback((): void => {
     judgeGeneration.current += 1
@@ -328,8 +341,41 @@ function LoadedWorkspace({
                   panelRef={panelRef}
                   tab={executionTab}
                   onTabChange={setExecutionTab}
-                  testInput={testInput}
-                  onTestInputChange={setTestInput}
+                  testCases={testCases}
+                  onTestCaseChange={(id, value) =>
+                    setTestCases((current) =>
+                      current.map((testCase) =>
+                        testCase.id === id ? { ...testCase, input: value } : testCase
+                      )
+                    )
+                  }
+                  onAddTestCase={() =>
+                    setTestCases((current) => [
+                      ...current,
+                      { id: window.crypto.randomUUID(), input: '' }
+                    ])
+                  }
+                  onDuplicateTestCase={(id) =>
+                    setTestCases((current) => {
+                      const source = current.find((testCase) => testCase.id === id)
+                      return source
+                        ? [
+                            ...current,
+                            {
+                              id: window.crypto.randomUUID(),
+                              input: source.input
+                            }
+                          ]
+                        : current
+                    })
+                  }
+                  onRemoveTestCase={(id) =>
+                    setTestCases((current) =>
+                      current.length > 1
+                        ? current.filter((testCase) => testCase.id !== id)
+                        : current
+                    )
+                  }
                   leetcodeConnected={leetcodeConnected}
                   problemSlug={problem.titleSlug}
                   judgeResult={judgeResult}
