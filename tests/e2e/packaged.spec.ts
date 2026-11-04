@@ -26,9 +26,13 @@ test('the packaged arm64 application launches with bundled resources', async () 
 
     const packagedState = await application.evaluate(({ app }) => ({
       isPackaged: app.isPackaged,
-      resourcesPath: process.resourcesPath
+      resourcesPath: process.resourcesPath,
+      playwrightBrowsersPath: process.env.PLAYWRIGHT_BROWSERS_PATH
     }))
     expect(packagedState.isPackaged).toBe(true)
+    expect(packagedState.playwrightBrowsersPath).toBe(
+      resolve(packagedState.resourcesPath, 'playwright')
+    )
     expect(
       existsSync(resolve(packagedState.resourcesPath, 'playwright'))
     ).toBe(true)

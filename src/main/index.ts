@@ -82,7 +82,9 @@ app.whenReady().then(() => {
   installContentSecurityPolicy()
   process.env.PLAYWRIGHT_BROWSERS_PATH =
     process.env.PLAYWRIGHT_BROWSERS_PATH ||
-    join(app.isPackaged ? process.resourcesPath : app.getAppPath(), 'resources', 'playwright')
+    (app.isPackaged
+      ? join(process.resourcesPath, 'playwright')
+      : join(app.getAppPath(), 'resources', 'playwright'))
 
   const problems = new LeetCodeProblemsService()
   const attempts = new AttemptStore(join(app.getPath('userData'), 'leetcode-desktop.sqlite'))
