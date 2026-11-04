@@ -66,7 +66,7 @@ import { createMainWindow } from './window'
 
 app.setName('LeetCode Desktop')
 
-const hasSingleInstanceLock = app.requestSingleInstanceLock()
+const hasSingleInstanceLock = !app.isPackaged || app.requestSingleInstanceLock()
 if (!hasSingleInstanceLock) app.quit()
 
 app.on('second-instance', () => {

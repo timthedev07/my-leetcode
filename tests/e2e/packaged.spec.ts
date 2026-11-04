@@ -59,9 +59,20 @@ test('the packaged editor supports Vim and offline C++ formatting', async () => 
 
     await page.getByRole('button', { name: 'Vim', exact: true }).click()
     await expect(page.locator('.vim-statusbar')).toContainText('NORMAL')
+    const editorInput = page.locator('.monaco-editor textarea').first()
+    await editorInput.click({ force: true })
+    await page.keyboard.press('g')
+    await page.keyboard.press('g')
+    await page.keyboard.press('o')
+    await expect(page.locator('.vim-statusbar')).toContainText('INSERT')
+    await page.keyboard.insertText('// packaged vim line')
+    await page.keyboard.press('Escape')
+    await expect(page.locator('.monaco-editor .view-lines').first()).toContainText(
+      '// packaged vim line'
+    )
     await page.getByRole('button', { name: 'Standard', exact: true }).click()
 
-    await page.locator('.monaco-editor textarea').first().click({ force: true })
+    await editorInput.click({ force: true })
     await page.keyboard.press('Meta+A')
     await page.keyboard.insertText(
       'class Solution{public:int solve(vector<int>& nums){int total=0;return total;}};'

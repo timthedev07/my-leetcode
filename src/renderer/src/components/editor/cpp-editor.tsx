@@ -7,6 +7,7 @@ import {
 import * as monaco from 'monaco-editor/editor/editor.api.js'
 import 'monaco-editor/languages/definitions/cpp/register.js'
 import 'monaco-editor/editor/contrib/format/browser/formatActions.js'
+import 'monaco-editor/editor/contrib/linesOperations/browser/linesOperations.js'
 import EditorWorker from 'monaco-editor/editor/editor.worker.js?worker'
 import { initVimMode, type VimAdapterInstance } from 'monaco-vim'
 import type { PersistedEditorState } from '@shared/types'
@@ -215,6 +216,7 @@ export const CppEditor = forwardRef<CppEditorHandle, CppEditorProps>(function Cp
     const status = vimStatusRef.current
     if (!editor || !status || !vimEnabled || readOnly) return
 
+    status.dataset.vimMode = 'normal'
     const shortcutGuard = editor.onKeyDown((event) => {
       const keyboardEvent = event.browserEvent
       const key = keyboardEvent.key.toLowerCase()
@@ -223,6 +225,19 @@ export const CppEditor = forwardRef<CppEditorHandle, CppEditorProps>(function Cp
         ['enter', 's'].includes(key)
       if (applicationChord || (keyboardEvent.altKey && keyboardEvent.shiftKey && key === 'f')) {
         event.preventDefault()
+      }
+    })
+    const lineOpeningCompatibility = editor.onKeyDown((event) => {
+      const keyboardEvent = event.browserEvent
+      const key = keyboardEvent.key
+      if (
+        status.dataset.vimMode === 'normal' &&
+        (key === 'o' || key === 'O') &&
+        !keyboardEvent.metaKey &&
+        !keyboardEvent.ctrlKey &&
+        !keyboardEvent.altKey
+      ) {
+        insertVimLine(editor, key === 'o')
       }
     })
     const adapter = initVimMode(editor, status)
@@ -238,6 +253,7 @@ export const CppEditor = forwardRef<CppEditorHandle, CppEditorProps>(function Cp
       adapter.off('vim-mode-change', onModeChange)
       adapter.dispose()
       shortcutGuard.dispose()
+      lineOpeningCompatibility.dispose()
       vimAdapterRef.current = null
       status.replaceChildren()
       status.removeAttribute('data-vim-mode')
@@ -408,5 +424,32 @@ function defineTheme(): void {
       'scrollbarSlider.activeBackground': '#777780aa'
     }
   })
+}
+
+function insertVimLine(editor: monaco.editor.IStandaloneCodeEditor, after: boolean): void {
+  const model = editor.getModel()
+  const position = editor.getPosition()
+  if (!model || !position) return
+
+  const line = model.getLineContent(position.lineNumber)
+  const indentation = line.match(/^\s*/)?.[0] ?? ''
+  const insertionLine = after ? position.lineNumber : position.lineNumber
+  const insertionColumn = after ? line.length + 1 : 1
+  editor.executeEdits('monaco-vim-line-open', [
+    {
+      range: new monaco.Range(
+        insertionLine,
+        insertionColumn,
+        insertionLine,
+        insertionColumn
+      ),
+      text: `${model.getEOL()}${indentation}`
+    }
+  ])
+  editor.setPosition({
+    lineNumber: after ? position.lineNumber + 1 : position.lineNumber,
+    column: indentation.length + 1
+  })
+  editor.focus()
 }
 
