@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { RefObject } from 'react'
 import type { Attempt } from '@shared/types'
-import { DRAFT_SAVE_DEBOUNCE_MS } from '@shared/constants'
+import {
+  DRAFT_SAVE_DEBOUNCE_MS,
+  DRAFT_SAVE_TIMEOUT_MS
+} from '@shared/constants'
 import type { CppEditorHandle } from '@/components/editor/cpp-editor'
 
 export type SaveStatus = 'saved' | 'dirty' | 'saving' | 'error'
@@ -60,8 +63,10 @@ export function useDraftPersistence(
     setStatus('saving')
     setErrorMessage(null)
 
-    const save = window.desktop
-      .saveAttempt(attempt.problemId, targetDraft, targetEditorState)
+    const save = withTimeout(
+      window.desktop.saveAttempt(attempt.problemId, targetDraft, targetEditorState),
+      DRAFT_SAVE_TIMEOUT_MS
+    )
       .then((result) => {
         if (!result.ok) throw new Error(result.error.message)
         savedRevisionRef.current = Math.max(savedRevisionRef.current, targetRevision)
@@ -120,5 +125,22 @@ export function useDraftPersistence(
   }, [attempt.problemId, editorRef])
 
   return { draft, status, errorMessage, markDirty, flush }
+}
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  let timer: number | null = null
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_resolve, reject) => {
+        timer = window.setTimeout(
+          () => reject(new Error('The local draft save did not complete. Restart the application and try again.')),
+          timeoutMs
+        )
+      })
+    ])
+  } finally {
+    if (timer !== null) window.clearTimeout(timer)
+  }
 }
 

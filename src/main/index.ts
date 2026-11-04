@@ -66,7 +66,19 @@ import { createMainWindow } from './window'
 
 app.setName('LeetCode Desktop')
 
+const hasSingleInstanceLock = app.requestSingleInstanceLock()
+if (!hasSingleInstanceLock) app.quit()
+
+app.on('second-instance', () => {
+  const window = BrowserWindow.getAllWindows()[0]
+  if (!window) return
+  if (window.isMinimized()) window.restore()
+  window.show()
+  window.focus()
+})
+
 app.whenReady().then(() => {
+  if (!hasSingleInstanceLock) return
   installContentSecurityPolicy()
   process.env.PLAYWRIGHT_BROWSERS_PATH =
     process.env.PLAYWRIGHT_BROWSERS_PATH ||

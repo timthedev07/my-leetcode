@@ -28,7 +28,7 @@ describe('shared contracts', () => {
 
   it('allows the Vite refresh preamble only in development', () => {
     expect(buildContentSecurityPolicy(true)).toContain(
-      "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'"
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval'"
     )
     expect(buildContentSecurityPolicy(true)).toContain('ws://localhost:*')
     expect(buildContentSecurityPolicy(false)).toContain(

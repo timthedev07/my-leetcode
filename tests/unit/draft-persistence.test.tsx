@@ -107,4 +107,47 @@ describe('draft persistence', () => {
 
     expect(saveAttempt).toHaveBeenCalledWith('209', 'int main() {}', editorState)
   })
+
+  it('reports an error instead of remaining on Saving when the IPC save never resolves', async () => {
+    const saveAttempt = vi.fn(
+      async () =>
+        new Promise<never>(() => {
+          // Deliberately never resolves.
+        })
+    )
+    Object.defineProperty(window, 'desktop', {
+      configurable: true,
+      value: {
+        saveAttempt,
+        queueAttemptSave: vi.fn()
+      }
+    })
+    const editorRef: RefObject<CppEditorHandle | null> = {
+      current: {
+        focus: vi.fn(),
+        revealLine: vi.fn(),
+        getEditorState: () => editorState,
+        formatDocument: vi.fn(async () => undefined),
+        undo: vi.fn(),
+        redo: vi.fn()
+      }
+    }
+    const { result } = renderHook(() => useDraftPersistence(attempt, editorRef, vi.fn()))
+
+    act(() => result.current.markDirty('int main() {}'))
+    await act(async () => {
+      vi.advanceTimersByTime(500)
+      await Promise.resolve()
+    })
+    expect(result.current.status).toBe('saving')
+
+    await act(async () => {
+      vi.advanceTimersByTime(8_000)
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(result.current.status).toBe('error')
+    expect(result.current.errorMessage).toContain('did not complete')
+  })
 })
