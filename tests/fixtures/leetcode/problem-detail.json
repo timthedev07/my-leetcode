@@ -24,7 +24,8 @@
         "code": "class Solution {\npublic:\n    int minSubArrayLen(int target, vector<int>& nums) {\n        \n    }\n};"
       }
     ],
-    "exampleTestcases": "7\n[2,3,1,2,4,3]\n4\n[1,4,4]\n11\n[1,1,1,1,1,1,1,1]"
+    "exampleTestcases": "7\n[2,3,1,2,4,3]\n4\n[1,4,4]\n11\n[1,1,1,1,1,1,1,1]",
+    "metaData": "{\n  \"name\": \"minSubArrayLen\",\n  \"params\": [\n    { \"name\": \"target\", \"type\": \"integer\" },\n    { \"name\": \"nums\", \"type\": \"integer[]\" }\n  ],\n  \"return\": { \"type\": \"integer\" }\n}"
   }
 }
 

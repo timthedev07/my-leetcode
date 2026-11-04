@@ -35,6 +35,17 @@ const rawCodeSnippetSchema = z.object({
   code: z.string()
 })
 
+const problemMetadataSchema = z
+  .object({
+    params: z.array(
+      z.object({
+        name: z.string(),
+        type: z.string()
+      })
+    )
+  })
+  .passthrough()
+
 const problemDetailResponseSchema = z.object({
   question: z
     .object({
@@ -48,7 +59,8 @@ const problemDetailResponseSchema = z.object({
       topicTags: z.array(rawTopicTagSchema).nullable().optional(),
       hints: z.array(z.string()).nullable().optional(),
       codeSnippets: z.array(rawCodeSnippetSchema).nullable().optional(),
-      exampleTestcases: z.string().nullable().optional()
+      exampleTestcases: z.string().nullable().optional(),
+      metaData: z.string().nullable().optional()
     })
     .nullable()
 })
@@ -134,6 +146,8 @@ export class LeetCodeProblemsService {
     const difficulty = parseDifficulty(question.difficulty)
     const starterCode = question.codeSnippets?.find((snippet) => snippet.langSlug === 'cpp')?.code ?? ''
     const topicTags = (question.topicTags ?? []).map(normaliseTopicTag)
+    const metadata = parseProblemMetadata(question.metaData)
+    const parameterCount = metadata?.params.length ?? 0
 
     const problem = problemDetailSchema.parse({
       internalId: question.questionId,
@@ -146,7 +160,10 @@ export class LeetCodeProblemsService {
       topicTags,
       hints: (question.hints ?? []).map(sanitiseProblemHtml),
       starterCode,
-      exampleTestcases: question.exampleTestcases ?? ''
+      exampleTestCases: splitExampleTestCases(
+        question.exampleTestcases ?? '',
+        parameterCount
+      )
     })
     this.cacheDetail(titleSlug, problem)
     return problem
@@ -164,6 +181,39 @@ export class LeetCodeProblemsService {
       expiresAtMs: this.now() + this.cacheTtlMs,
       value: problem
     })
+  }
+}
+
+export function splitExampleTestCases(input: string, parameterCount: number): string[] {
+  const trimmed = input.trim()
+  if (!trimmed) return []
+
+  const lines = trimmed.split(/\r?\n/)
+  if (
+    parameterCount < 1 ||
+    lines.length <= parameterCount ||
+    lines.length % parameterCount !== 0
+  ) {
+    return [trimmed]
+  }
+
+  const cases: string[] = []
+  for (let index = 0; index < lines.length; index += parameterCount) {
+    cases.push(lines.slice(index, index + parameterCount).join('\n'))
+  }
+  return cases
+}
+
+function parseProblemMetadata(value: string | null | undefined): z.infer<
+  typeof problemMetadataSchema
+> | null {
+  if (!value) return null
+  try {
+    const result = problemMetadataSchema.safeParse(JSON.parse(value) as unknown)
+    return result.success ? result.data : null
+  } catch (error) {
+    if (error instanceof SyntaxError) return null
+    throw error
   }
 }
 

@@ -140,13 +140,16 @@ function LoadedWorkspace({
   const statementRef = useRef<HTMLElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
   const [editorReady, setEditorReady] = useState(false)
-  const [testCases, setTestCases] = useState<TestCaseDraft[]>([
-    {
+  const [testCases, setTestCases] = useState<TestCaseDraft[]>(() => {
+    const inputs =
+      problem.exampleTestCases.length > 0 ? problem.exampleTestCases : ['']
+    return inputs.map((input, index) => ({
       id: window.crypto.randomUUID(),
-      input: problem.exampleTestcases,
-      label: 'Example tests'
-    }
-  ])
+      input,
+      label:
+        inputs.length === 1 ? 'Example tests' : `Example ${index + 1}`
+    }))
+  })
   const testInput = testCases.map((testCase) => testCase.input).join('\n')
   const [executionTab, setExecutionTab] = useState<ExecutionTab>('tests')
   const [judgeResult, setJudgeResult] = useState<JudgeResult | null>(null)

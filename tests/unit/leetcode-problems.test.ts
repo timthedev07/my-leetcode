@@ -5,7 +5,8 @@ import type { ProblemSummary } from '@shared/types'
 import {
   LeetCodeProblemsService,
   rankProblem,
-  sanitiseProblemHtml
+  sanitiseProblemHtml,
+  splitExampleTestCases
 } from '../../src/main/leetcode/problems'
 
 async function fixture(name: string): Promise<unknown> {
@@ -64,6 +65,22 @@ describe('LeetCode problem discovery', () => {
     expect(problem.contentHtml).toContain('Constraints')
     expect(problem.contentHtml).not.toContain('<script')
     expect(problem.contentHtml).not.toContain('javascript:')
+    expect(problem.exampleTestCases).toEqual([
+      '7\n[2,3,1,2,4,3]',
+      '4\n[1,4,4]',
+      '11\n[1,1,1,1,1,1,1,1]'
+    ])
+  })
+
+  it('splits line-delimited examples by signature and preserves uncertain input', () => {
+    expect(splitExampleTestCases('7\n[2,3,1]\n4\n[1,4]', 2)).toEqual([
+      '7\n[2,3,1]',
+      '4\n[1,4]'
+    ])
+    expect(splitExampleTestCases('7\n[2,3,1]\n4', 2)).toEqual([
+      '7\n[2,3,1]\n4'
+    ])
+    expect(splitExampleTestCases('   ', 2)).toEqual([])
   })
 
   it('defuses inline handlers and non-HTTPS links', () => {

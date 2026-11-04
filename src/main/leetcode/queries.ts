@@ -48,6 +48,7 @@ export const QUESTION_DETAIL_DOCUMENT = `
         code
       }
       exampleTestcases
+      metaData
     }
   }
 `

@@ -34,7 +34,7 @@ export const problemDetailSchema = problemSummarySchema.extend({
   contentHtml: z.string(),
   hints: z.array(z.string()),
   starterCode: z.string(),
-  exampleTestcases: z.string()
+  exampleTestCases: z.array(z.string())
 })
 
 const editorPositionSchema = z.object({

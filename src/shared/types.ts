@@ -45,7 +45,7 @@ export type ProblemDetail = ProblemSummary & {
   contentHtml: string
   hints: string[]
   starterCode: string
-  exampleTestcases: string
+  exampleTestCases: string[]
 }
 
 export type EditorPosition = {

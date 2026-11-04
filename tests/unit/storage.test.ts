@@ -35,7 +35,7 @@ function problemDetail(overrides: Partial<ProblemDetail> = {}): ProblemDetail {
     contentHtml: '<p>Find the minimum length.</p>',
     hints: [],
     starterCode: 'class Solution {};',
-    exampleTestcases: '7\n[2,3,1,2,4,3]',
+    exampleTestCases: ['7\n[2,3,1,2,4,3]'],
     ...overrides
   }
 }

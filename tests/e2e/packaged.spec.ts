@@ -60,6 +60,16 @@ test('the packaged editor supports Vim and offline C++ formatting', async () => 
     await result.waitFor({ timeout: 20_000 })
     await result.click()
     await page.locator('.monaco-editor').first().waitFor({ timeout: 30_000 })
+    await expect(page.getByText('3 cases', { exact: true })).toBeVisible()
+    await expect(page.getByLabel('Example 1 input')).toHaveValue(
+      '7\n[2,3,1,2,4,3]'
+    )
+    await expect(page.getByLabel('Example 2 input')).toHaveValue(
+      '4\n[1,4,4]'
+    )
+    await expect(page.getByLabel('Example 3 input')).toHaveValue(
+      '11\n[1,1,1,1,1,1,1,1]'
+    )
 
     await page.getByRole('button', { name: 'Vim', exact: true }).click()
     await expect(page.locator('.vim-statusbar')).toContainText('NORMAL')
