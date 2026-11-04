@@ -17,6 +17,11 @@ Only the public client ID is entered in LeetCode Desktop. Never place a client s
 
 Device polling respects GitHub’s required interval and expiry. Denied or expired requests produce a new, actionable error.
 
+The device flow above authorises GitHub synchronisation. Separately, if LeetCode
+sign-in uses **Continue with GitHub**, complete that login inside the dedicated
+Playwright browser. Its GitHub cookies persist in the dedicated LeetCode
+browser profile, not in your everyday Chrome profile.
+
 ## Secure storage
 
 GitHub tokens are encrypted through Electron’s `safeStorage` facility and written to an owner-only file under application data. If operating-system encryption is unavailable, the app refuses to save the token.

@@ -5,6 +5,10 @@
 - Complete login in the Playwright window.
 - Handle any official LeetCode challenge directly in that window.
 - If the session expired, select **Reconnect LeetCode**.
+- Signing in again is normally required only after LeetCode invalidates the
+  session, the dedicated profile is cleared, or **Disconnect** is selected.
+- A GitHub login made in the dedicated window is stored there; the app does not
+  use cookies from your everyday Chrome profile.
 - Confirm the dedicated Chromium resource exists by running `yarn install:browser` in development.
 - If LeetCode returns 403 or 429, wait and use **Open LeetCode**. The app does not bypass restrictions.
 
