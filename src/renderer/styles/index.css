@@ -21,12 +21,12 @@
   color-scheme: dark;
   --background: #101012;
   --surface: #161619;
-  --surface-raised: #1d1d21;
-  --surface-hover: #242429;
-  --border: #303036;
-  --border-strong: #44444b;
-  --text: #f2f0ea;
-  --muted: #a19e99;
+  --surface-raised: #1c1c20;
+  --surface-hover: #232328;
+  --border: #2c2c31;
+  --border-strong: #404046;
+  --text: #f3f1eb;
+  --muted: #a5a19a;
   --accent: #c9a75d;
   --accent-foreground: #101012;
   --destructive: #c85f5f;
@@ -60,6 +60,40 @@ button,
 input,
 textarea {
   font: inherit;
+}
+
+button {
+  cursor: default;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+* {
+  scrollbar-color: #55545c transparent;
+  scrollbar-width: thin;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: #56555d;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #6b6972;
+  background-clip: padding-box;
 }
 
 ::selection {

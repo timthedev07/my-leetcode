@@ -71,20 +71,33 @@ export function ExecutionPanel({
         onValueChange={(value) => onTabChange(value as ExecutionTab)}
         className="flex min-h-0 flex-1 flex-col"
       >
-        <div className="flex h-10 shrink-0 items-center border-b border-border px-2">
-          <TabsList className="h-8 rounded-none border-0 bg-transparent p-0">
-            <TabsTrigger value="tests">Test cases</TabsTrigger>
-            <TabsTrigger value="results">
+        <div className="flex h-10 shrink-0 items-center border-b border-border px-3">
+          <TabsList className="h-10 gap-1 rounded-none border-0 bg-transparent p-0">
+            <TabsTrigger
+              value="tests"
+              className="h-10 rounded-none border-b-2 border-transparent px-3 data-[state=active]:border-accent data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:ring-0"
+            >
+              Test cases
+            </TabsTrigger>
+            <TabsTrigger
+              value="results"
+              className="h-10 rounded-none border-b-2 border-transparent px-3 data-[state=active]:border-accent data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:ring-0"
+            >
               Results
               {judgeBusy ? (
                 <Loader2 className="ml-1.5 size-3 animate-spin motion-reduce:animate-none" aria-hidden="true" />
               ) : null}
             </TabsTrigger>
-            <TabsTrigger value="submissions">Submissions</TabsTrigger>
+            <TabsTrigger
+              value="submissions"
+              className="h-10 rounded-none border-b-2 border-transparent px-3 data-[state=active]:border-accent data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:ring-0"
+            >
+              Submissions
+            </TabsTrigger>
           </TabsList>
         </div>
 
-        <TabsContent value="tests" className="m-0 min-h-0 flex-1 p-3">
+        <TabsContent value="tests" className="m-0 min-h-0 flex-1 p-3.5">
           <label className="sr-only" htmlFor="custom-test-input">
             Custom test cases
           </label>
@@ -93,7 +106,7 @@ export function ExecutionPanel({
             value={testInput}
             onChange={(event) => onTestInputChange(event.target.value)}
             spellCheck={false}
-            className="h-full min-h-24 w-full resize-none rounded-md border border-border bg-background/55 p-3 font-mono text-xs leading-5 text-foreground outline-none placeholder:text-muted/60 focus-visible:border-accent/60 focus-visible:ring-1 focus-visible:ring-accent/40"
+            className="h-full min-h-24 w-full resize-none rounded-md border border-border bg-background/55 p-3.5 font-mono text-xs leading-5 text-foreground outline-none placeholder:text-muted/60 focus-visible:border-accent/60 focus-visible:ring-1 focus-visible:ring-accent/40"
             placeholder="Enter test inputs using LeetCode’s line-delimited format."
           />
         </TabsContent>

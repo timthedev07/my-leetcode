@@ -202,12 +202,18 @@ export function GitHubSettingsDialog({
         </DialogHeader>
 
         <Tabs defaultValue="formatting">
-          <TabsList className="w-fit">
-            <TabsTrigger value="formatting">
+          <TabsList className="h-10 w-fit gap-1 rounded-none border-0 bg-transparent p-0">
+            <TabsTrigger
+              value="formatting"
+              className="h-10 rounded-none border-b-2 border-transparent px-3 data-[state=active]:border-accent data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:ring-0"
+            >
               <Braces className="mr-1.5 size-3.5" aria-hidden="true" />
               Formatting
             </TabsTrigger>
-            <TabsTrigger value="github">
+            <TabsTrigger
+              value="github"
+              className="h-10 rounded-none border-b-2 border-transparent px-3 data-[state=active]:border-accent data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:ring-0"
+            >
               <Github className="mr-1.5 size-3.5" aria-hidden="true" />
               GitHub
             </TabsTrigger>

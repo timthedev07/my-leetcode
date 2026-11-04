@@ -17,15 +17,15 @@ export const ProblemStatement = forwardRef<HTMLElement, ProblemStatementProps>(
         className="flex h-full min-h-0 flex-col overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
         aria-labelledby="problem-title"
       >
-        <header className="flex min-h-16 shrink-0 items-start gap-4 border-b border-border px-5 py-3.5">
+        <header className="flex min-h-[68px] shrink-0 items-start gap-3 border-b border-border px-5 py-3">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <h1 id="problem-title" className="min-w-0 truncate text-[17px] font-semibold tracking-tight">
+              <h1 id="problem-title" className="min-w-0 truncate text-[16px] font-semibold tracking-[-0.01em]">
                 {problem.frontendId}. {problem.title}
               </h1>
               <span className={difficultyClass(problem.difficulty)}>{problem.difficulty}</span>
             </div>
-            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
               {problem.topicTags.map((tag) => (
                 <span
                   key={tag.slug}
@@ -39,12 +39,13 @@ export const ProblemStatement = forwardRef<HTMLElement, ProblemStatementProps>(
           <Button
             variant="ghost"
             size="sm"
+            aria-label="Open on LeetCode"
             onClick={() => {
               void window.desktop.openExternal(`https://leetcode.com/problems/${problem.titleSlug}/`)
             }}
           >
-            LeetCode
             <ExternalLink className="size-3.5" aria-hidden="true" />
+            <span className="hidden xl:inline">LeetCode</span>
           </Button>
         </header>
 

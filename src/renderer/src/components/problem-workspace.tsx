@@ -440,7 +440,7 @@ function EditorPane({
 }): React.JSX.Element {
   return (
     <section className="flex h-full min-h-0 flex-col bg-[#141416]" aria-label="C++ editor">
-      <div className="flex h-10 shrink-0 items-center border-b border-border bg-surface/70 px-3">
+      <div className="flex h-11 shrink-0 items-center border-b border-border bg-surface/70 px-3.5">
         <Braces className="size-3.5 text-accent/80" aria-hidden="true" />
         <span className="ml-2 font-mono text-[11px] text-foreground">
           Problem{problem.frontendId}.cpp
@@ -448,14 +448,14 @@ function EditorPane({
         <span className="ml-2 text-[10px] text-muted">C++</span>
         <SaveIndicator status={saveStatus} error={saveError} />
         <div
-          className="ml-3 flex items-center rounded border border-border bg-background/45 p-0.5"
+          className="ml-3.5 flex items-center rounded-md border border-border bg-background/45 p-0.5"
           role="group"
           aria-label="Editor keybindings"
         >
           <button
             type="button"
             className={cn(
-              'h-6 rounded-[3px] px-2 text-[10px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              'h-6 rounded-[3px] px-2 text-[10.5px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
               !vimEnabled ? 'bg-surface-hover text-foreground' : 'text-muted hover:text-foreground'
             )}
             aria-pressed={!vimEnabled}
@@ -469,7 +469,7 @@ function EditorPane({
           <button
             type="button"
             className={cn(
-              'h-6 rounded-[3px] px-2 font-mono text-[10px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              'h-6 rounded-[3px] px-2 font-mono text-[10.5px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
               vimEnabled ? 'bg-accent/15 text-accent' : 'text-muted hover:text-foreground'
             )}
             aria-pressed={vimEnabled}
@@ -519,7 +519,7 @@ function EditorPane({
             </TooltipTrigger>
             <TooltipContent>Tab moves focus</TooltipContent>
           </Tooltip>
-          <Button variant="ghost" size="sm" className="h-7 text-[11px]" onClick={onSave}>
+          <Button variant="ghost" size="sm" className="h-7 px-2.5 text-[11px]" onClick={onSave}>
             Save
           </Button>
         </div>
