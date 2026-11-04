@@ -1,6 +1,8 @@
 export function buildContentSecurityPolicy(development: boolean): string {
   const connectSources = development ? "'self' ws://localhost:* http://localhost:*" : "'self'"
-  const scriptSources = development ? "'self' 'unsafe-inline'" : "'self'"
+  const scriptSources = development
+    ? "'self' 'unsafe-inline' 'wasm-unsafe-eval'"
+    : "'self' 'wasm-unsafe-eval'"
   return [
     "default-src 'self'",
     `script-src ${scriptSources}`,
