@@ -1,6 +1,6 @@
 # Implementation Plan — Vim Mode and C++ Formatting
 
-**Status:** Implemented and verified for version 1.1.0. Compatibility limits and verification evidence are recorded in `IMPLEMENTATION_CHECKLIST.md`, `README.md` and `docs/vim-and-formatting.md`.
+**Status:** Implemented and verified for the unreleased `0.0.0` build. Compatibility limits and verification evidence are recorded in `IMPLEMENTATION_CHECKLIST.md`, `README.md` and `docs/vim-and-formatting.md`.
 
 ## Objective
 
