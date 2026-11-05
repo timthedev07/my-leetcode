@@ -183,17 +183,10 @@ export const CppEditor = forwardRef<CppEditorHandle, CppEditorProps>(function Cp
       const model = editor.getModel()
       if (!position || !model || (selection && !selection.isEmpty())) return
 
-      const lineContent = model.getLineContent(position.lineNumber)
-      const nextLineContent =
-        position.lineNumber < model.getLineCount()
-          ? model.getLineContent(position.lineNumber + 1)
-          : ''
       const insertion = createSmartEnterInsertion(
-        lineContent,
+        model.getLineContent(position.lineNumber),
         position.column,
-        indentWidthRef.current,
-        model.getEOL(),
-        nextLineContent
+        model.getEOL()
       )
       if (!insertion) return
 
@@ -205,9 +198,7 @@ export const CppEditor = forwardRef<CppEditorHandle, CppEditorProps>(function Cp
             position.lineNumber,
             position.column,
             position.lineNumber,
-            insertion.replaceTrailingCloseBrace
-              ? model.getLineMaxColumn(position.lineNumber)
-              : position.column
+            position.column
           ),
           text: insertion.text
         }
