@@ -6,11 +6,10 @@ import {
   type MenuItemConstructorOptions,
   type MessageBoxOptions
 } from 'electron'
-import {
-  autoUpdater,
-  type UpdateDownloadedEvent,
-  type UpdateInfo
-} from 'electron-updater'
+import electronUpdater from 'electron-updater'
+import type { UpdateDownloadedEvent, UpdateInfo } from 'electron-updater'
+
+const { autoUpdater } = electronUpdater
 
 const INITIAL_CHECK_DELAY_MS = 10_000
 const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000

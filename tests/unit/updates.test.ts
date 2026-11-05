@@ -54,7 +54,9 @@ vi.mock('electron', () => ({
 }))
 
 vi.mock('electron-updater', () => ({
-  autoUpdater: mocks.updater
+  default: {
+    autoUpdater: mocks.updater
+  }
 }))
 
 import { ApplicationUpdater } from '../../src/main/updates'
