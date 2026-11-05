@@ -64,7 +64,7 @@ yarn release
 ```
 
 `yarn package` creates an arm64 DMG and ZIP in `release/`. Unsigned local builds are suitable for testing only.
-`yarn release` publishes signed, notarised update metadata and installers to GitHub. See
+`yarn release` publishes ad-hoc signed update metadata and installers to GitHub. See
 `docs/updates.md` for the required credentials and release sequence.
 
 ### Development diagnostics

@@ -67,5 +67,5 @@ Live integrations are opt-in and require user-owned credentials. Automated fixtu
 - The build is ad-hoc unsigned unless a Developer ID application identity and notarisation credentials are configured.
 - Packaged builds check GitHub for updates shortly after launch and every six hours.
 - Updates require explicit download consent and are installed after restart or application exit.
-- `yarn release` publishes the signed ZIP, DMG, blockmaps and `latest-mac.yml` required by the updater.
+- `yarn release` publishes ad-hoc signed ZIP, DMG, blockmaps and `latest-mac.yml` assets required by the updater.
 
