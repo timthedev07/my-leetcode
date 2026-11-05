@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, stat } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -9,8 +9,7 @@ import {
 } from '../../src/main/github/auth'
 import {
   TokenStore,
-  type GitHubCredential,
-  type SafeStorageAdapter
+  type GitHubCredential
 } from '../../src/main/github/token-store'
 
 const temporaryDirectories: string[] = []
@@ -42,24 +41,6 @@ function createTokenStore(): GitHubTokenStore & {
     clearCredential: vi.fn(async () => {
       credential = null
     })
-  }
-}
-
-function createEncryptedAdapter(
-  available = true
-): SafeStorageAdapter & {
-  encryptStringAsync: ReturnType<typeof vi.fn>
-  decryptStringAsync: ReturnType<typeof vi.fn>
-} {
-  return {
-    isAsyncEncryptionAvailable: vi.fn(async () => available),
-    encryptStringAsync: vi.fn(async (plainText: string) =>
-      Buffer.from(Array.from(plainText).reverse().join(''))
-    ),
-    decryptStringAsync: vi.fn(async (encrypted: Buffer) => ({
-      result: Array.from(encrypted.toString()).reverse().join(''),
-      shouldReEncrypt: false
-    }))
   }
 }
 
@@ -229,42 +210,43 @@ describe('GitHub token storage', () => {
     const directory = await mkdtemp(join(tmpdir(), 'leetcode-desktop-github-'))
     temporaryDirectories.push(directory)
     const tokenPath = join(directory, 'github-token.bin')
-    const adapter = createEncryptedAdapter()
-    const store = new TokenStore(tokenPath, adapter)
+    const keyPath = `${tokenPath}.key`
+    const store = new TokenStore(tokenPath)
 
     expect(await store.readToken()).toBeNull()
     await store.saveToken('opaque-token-value')
 
     const encryptedBytes = await readFile(tokenPath)
+    const keyBytes = await readFile(keyPath)
     expect(encryptedBytes.toString()).not.toContain('opaque-token-value')
+    expect(keyBytes).toHaveLength(32)
     expect((await stat(tokenPath)).mode & 0o777).toBe(0o600)
+    expect((await stat(keyPath)).mode & 0o777).toBe(0o600)
 
-    const restoredStore = new TokenStore(tokenPath, adapter)
+    const restoredStore = new TokenStore(tokenPath)
     expect(await restoredStore.readToken()).toBe('opaque-token-value')
 
     await store.clearToken()
     expect(await store.readToken()).toBeNull()
+    await expect(stat(keyPath)).rejects.toMatchObject({ code: 'ENOENT' })
   })
 
-  it('fails with actionable guidance when safe storage is unavailable', async () => {
+  it('discards legacy Keychain-backed credentials without prompting', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'leetcode-desktop-github-'))
     temporaryDirectories.push(directory)
-    const store = new TokenStore(join(directory, 'github-token.bin'), createEncryptedAdapter(false))
+    const tokenPath = join(directory, 'github-token.bin')
+    await writeFile(tokenPath, 'legacy-safe-storage-ciphertext', { mode: 0o600 })
+    const store = new TokenStore(tokenPath)
 
-    await expect(store.saveToken('opaque-token-value')).rejects.toEqual(
-      expect.objectContaining({
-        code: 'STORAGE_FAILED',
-        message:
-          'Secure credential storage is unavailable. Unlock your system keychain and restart the app.'
-      })
-    )
+    expect(await store.readToken()).toBeNull()
+    await expect(stat(tokenPath)).rejects.toMatchObject({ code: 'ENOENT' })
   })
 
   it('round-trips refresh credentials without writing plaintext', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'leetcode-desktop-github-'))
     temporaryDirectories.push(directory)
     const tokenPath = join(directory, 'github-token.bin')
-    const store = new TokenStore(tokenPath, createEncryptedAdapter())
+    const store = new TokenStore(tokenPath)
     const credential: GitHubCredential = {
       accessToken: 'access-value',
       refreshToken: 'refresh-value',

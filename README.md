@@ -84,7 +84,7 @@ Open **Accounts**, select **Connect**, and sign in through the dedicated Playwri
 
 ### GitHub
 
-Create an OAuth App or GitHub App, enable device authorisation, and enter its public client ID in **Settings**. No client secret belongs in this application. GitHub tokens are encrypted with Electron `safeStorage` and stored with owner-only file permissions.
+Create an OAuth App or GitHub App, enable device authorisation, and enter its public client ID in **Settings**. No client secret belongs in this application. GitHub tokens are encrypted with a local AES-256-GCM key, and both files use owner-only permissions. The application does not use the macOS Keychain.
 
 ## GitHub synchronisation
 

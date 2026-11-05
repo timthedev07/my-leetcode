@@ -1,24 +1,7 @@
-import { randomUUID } from 'node:crypto'
+import { createCipheriv, createDecipheriv, randomBytes, randomUUID } from 'node:crypto'
 import { chmod, mkdir, open, readFile, rename, unlink } from 'node:fs/promises'
 import { dirname } from 'node:path'
-import { safeStorage } from 'electron'
 import { AppError } from '../security/app-error'
-
-type AsyncDecryptResult = {
-  result: string
-  shouldReEncrypt: boolean
-}
-
-export type SafeStorageAdapter = {
-  isAsyncEncryptionAvailable?: () => Promise<boolean>
-  isEncryptionAvailable?: () => boolean
-  encryptStringAsync?: (plainText: string) => Promise<Buffer>
-  encryptString?: (plainText: string) => Buffer
-  decryptStringAsync?: (encrypted: Buffer) => Promise<AsyncDecryptResult>
-  decryptString?: (encrypted: Buffer) => string
-}
-
-const electronSafeStorage = safeStorage as SafeStorageAdapter | undefined
 
 export type GitHubCredential = {
   accessToken: string
@@ -27,13 +10,20 @@ export type GitHubCredential = {
   refreshTokenExpiresAtMs?: number
 }
 
+const ALGORITHM = 'aes-256-gcm'
+const KEY_BYTES = 32
+const IV_BYTES = 12
+const AUTH_TAG_BYTES = 16
+const MAGIC = Buffer.from('LKD1')
+const HEADER_BYTES = MAGIC.length + IV_BYTES + AUTH_TAG_BYTES
+
 export class TokenStore {
   private pendingOperation: Promise<void> = Promise.resolve()
+  private readonly keyPath: string
 
-  constructor(
-    private readonly filePath: string,
-    private readonly storage: SafeStorageAdapter | undefined = electronSafeStorage
-  ) {}
+  constructor(private readonly filePath: string) {
+    this.keyPath = `${filePath}.key`
+  }
 
   readToken(): Promise<string | null> {
     return this.readCredential().then((credential) => credential?.accessToken ?? null)
@@ -41,20 +31,20 @@ export class TokenStore {
 
   readCredential(): Promise<GitHubCredential | null> {
     return this.enqueue(async () => {
-      await this.assertEncryptionAvailable()
+      const encrypted = await readOptional(this.filePath)
+      if (!encrypted) return null
 
-      let encrypted: Buffer
-      try {
-        encrypted = await readFile(this.filePath)
-      } catch (error) {
-        if (isMissingFile(error)) return null
-        throw storageError('GitHub credentials could not be read securely.', error)
+      const key = await readOptional(this.keyPath)
+      if (!key || key.length !== KEY_BYTES) {
+        await this.clearStoredFiles()
+        return null
       }
 
       try {
-        return parseCredential(await this.decrypt(encrypted))
-      } catch (error) {
-        throw storageError('GitHub credentials could not be decrypted. Reconnect GitHub.', error)
+        return parseCredential(decryptCredential(encrypted, key))
+      } catch {
+        await this.clearStoredFiles()
+        return null
       }
     })
   }
@@ -70,32 +60,12 @@ export class TokenStore {
         throw new AppError('STORAGE_FAILED', 'GitHub returned an empty access token. Reconnect GitHub.')
       }
 
-      await this.assertEncryptionAvailable()
-
-      let encrypted: Buffer
-      try {
-        encrypted = await this.encrypt(JSON.stringify(normalised))
-      } catch (error) {
-        throw storageError('GitHub credentials could not be encrypted.', error)
-      }
-
-      const directory = dirname(this.filePath)
-      const temporaryPath = `${this.filePath}.${process.pid}.${randomUUID()}.tmp`
+      const key = await this.getOrCreateKey()
+      const encrypted = encryptCredential(JSON.stringify(normalised), key)
 
       try {
-        await mkdir(directory, { recursive: true, mode: 0o700 })
-        const handle = await open(temporaryPath, 'wx', 0o600)
-        try {
-          await handle.writeFile(encrypted)
-          await handle.sync()
-        } finally {
-          await handle.close()
-        }
-        await chmod(temporaryPath, 0o600)
-        await rename(temporaryPath, this.filePath)
-        await chmod(this.filePath, 0o600)
+        await writePrivateFile(this.filePath, encrypted)
       } catch (error) {
-        await removeIfPresent(temporaryPath)
         throw storageError('GitHub credentials could not be saved securely.', error)
       }
     })
@@ -108,11 +78,9 @@ export class TokenStore {
   clearCredential(): Promise<void> {
     return this.enqueue(async () => {
       try {
-        await unlink(this.filePath)
+        await this.clearStoredFiles()
       } catch (error) {
-        if (!isMissingFile(error)) {
-          throw storageError('GitHub credentials could not be removed.', error)
-        }
+        throw storageError('GitHub credentials could not be removed.', error)
       }
     })
   }
@@ -126,47 +94,47 @@ export class TokenStore {
     return result
   }
 
-  private async assertEncryptionAvailable(): Promise<void> {
-    if (!this.storage) {
-      throw unavailableError()
-    }
+  private async getOrCreateKey(): Promise<Buffer> {
+    const existing = await readOptional(this.keyPath)
+    if (existing?.length === KEY_BYTES) return existing
+    if (existing) await removeOptional(this.keyPath)
 
+    const key = randomBytes(KEY_BYTES)
     try {
-      if (this.storage.isAsyncEncryptionAvailable) {
-        if (!(await this.storage.isAsyncEncryptionAvailable())) {
-          throw unavailableError()
-        }
-        return
-      }
-
-      if (this.storage.isEncryptionAvailable?.()) return
+      await writePrivateFile(this.keyPath, key)
+      return key
     } catch (error) {
-      if (error instanceof AppError) throw error
-      throw storageError('Secure credential storage is unavailable.', error)
+      throw storageError('GitHub credential encryption key could not be created.', error)
     }
-
-    throw unavailableError()
   }
 
-  private async encrypt(plainText: string): Promise<Buffer> {
-    if (this.storage?.encryptStringAsync) {
-      return this.storage.encryptStringAsync(plainText)
-    }
-    if (this.storage?.encryptString) {
-      return this.storage.encryptString(plainText)
-    }
-    throw unavailableError()
+  private async clearStoredFiles(): Promise<void> {
+    await removeOptional(this.filePath)
+    await removeOptional(this.keyPath)
+  }
+}
+
+function encryptCredential(plainText: string, key: Buffer): Buffer {
+  const iv = randomBytes(IV_BYTES)
+  const cipher = createCipheriv(ALGORITHM, key, iv, { authTagLength: AUTH_TAG_BYTES })
+  const ciphertext = Buffer.concat([cipher.update(plainText, 'utf8'), cipher.final()])
+  return Buffer.concat([MAGIC, iv, cipher.getAuthTag(), ciphertext])
+}
+
+function decryptCredential(encrypted: Buffer, key: Buffer): string {
+  if (encrypted.length <= HEADER_BYTES || !encrypted.subarray(0, MAGIC.length).equals(MAGIC)) {
+    throw new Error('The encrypted credential has an unsupported format.')
   }
 
-  private async decrypt(encrypted: Buffer): Promise<string> {
-    if (this.storage?.decryptStringAsync) {
-      return (await this.storage.decryptStringAsync(encrypted)).result
-    }
-    if (this.storage?.decryptString) {
-      return this.storage.decryptString(encrypted)
-    }
-    throw unavailableError()
-  }
+  const ivStart = MAGIC.length
+  const authTagStart = ivStart + IV_BYTES
+  const ciphertextStart = authTagStart + AUTH_TAG_BYTES
+  const iv = encrypted.subarray(ivStart, authTagStart)
+  const authTag = encrypted.subarray(authTagStart, ciphertextStart)
+  const ciphertext = encrypted.subarray(ciphertextStart)
+  const decipher = createDecipheriv(ALGORITHM, key, iv, { authTagLength: AUTH_TAG_BYTES })
+  decipher.setAuthTag(authTag)
+  return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8')
 }
 
 function parseCredential(value: string): GitHubCredential {
@@ -177,7 +145,6 @@ function parseCredential(value: string): GitHubCredential {
   try {
     parsed = JSON.parse(value)
   } catch {
-    // Credentials written by older versions were plain access-token strings.
     return { accessToken: value }
   }
   if (typeof parsed !== 'object' || parsed === null || !('accessToken' in parsed)) {
@@ -212,16 +179,43 @@ function normaliseCredential(
   return result
 }
 
-function unavailableError(): AppError {
-  return new AppError(
-    'STORAGE_FAILED',
-    'Secure credential storage is unavailable. Unlock your system keychain and restart the app.'
-  )
+async function writePrivateFile(filePath: string, contents: Buffer): Promise<void> {
+  const directory = dirname(filePath)
+  const temporaryPath = `${filePath}.${process.pid}.${randomUUID()}.tmp`
+
+  try {
+    await mkdir(directory, { recursive: true, mode: 0o700 })
+    const handle = await open(temporaryPath, 'wx', 0o600)
+    try {
+      await handle.writeFile(contents)
+      await handle.sync()
+    } finally {
+      await handle.close()
+    }
+    await chmod(temporaryPath, 0o600)
+    await rename(temporaryPath, filePath)
+    await chmod(filePath, 0o600)
+  } catch (error) {
+    await removeOptional(temporaryPath)
+    throw error
+  }
 }
 
-function storageError(message: string, error: unknown): AppError {
-  if (error instanceof AppError) return error
-  return new AppError('STORAGE_FAILED', message, error instanceof Error ? error.message : undefined)
+async function readOptional(filePath: string): Promise<Buffer | null> {
+  try {
+    return await readFile(filePath)
+  } catch (error) {
+    if (isMissingFile(error)) return null
+    throw storageError('Stored GitHub credential data could not be read.', error)
+  }
+}
+
+async function removeOptional(filePath: string): Promise<void> {
+  try {
+    await unlink(filePath)
+  } catch (error) {
+    if (!isMissingFile(error)) throw error
+  }
 }
 
 function isMissingFile(error: unknown): boolean {
@@ -233,12 +227,7 @@ function isMissingFile(error: unknown): boolean {
   )
 }
 
-async function removeIfPresent(filePath: string): Promise<void> {
-  try {
-    await unlink(filePath)
-  } catch (error) {
-    if (!isMissingFile(error)) {
-      // The original write error is more useful than a temporary-file cleanup failure.
-    }
-  }
+function storageError(message: string, error: unknown): AppError {
+  if (error instanceof AppError) return error
+  return new AppError('STORAGE_FAILED', message, error instanceof Error ? error.message : undefined)
 }

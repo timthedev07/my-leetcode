@@ -1,5 +1,5 @@
 import { join } from 'node:path'
-import { app, BrowserWindow, clipboard, safeStorage } from 'electron'
+import { app, BrowserWindow, clipboard } from 'electron'
 import { z } from 'zod'
 import { IPC } from '@shared/ipc'
 import {
@@ -121,10 +121,7 @@ app.whenReady().then(() => {
     }
   })
 
-  const githubTokenStore = new TokenStore(
-    join(app.getPath('userData'), 'github-token.bin'),
-    safeStorage
-  )
+  const githubTokenStore = new TokenStore(join(app.getPath('userData'), 'github-token.bin'))
   const githubClientId = async (): Promise<string> => {
     const configured =
       process.env.GITHUB_OAUTH_CLIENT_ID?.trim() ||

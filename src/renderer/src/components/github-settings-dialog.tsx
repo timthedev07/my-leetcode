@@ -430,7 +430,7 @@ export function GitHubSettingsDialog({
               <ShieldCheck className="mt-0.5 size-4 shrink-0 text-accent/80" aria-hidden="true" />
               <p>
                 Only the public client ID is stored in settings. GitHub access and refresh tokens
-                are encrypted with Electron safe storage.
+                are encrypted locally and never use the macOS Keychain.
               </p>
             </div>
           </TabsContent>
