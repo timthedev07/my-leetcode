@@ -148,7 +148,7 @@ SortIncludes: Never
       await app.page.keyboard.insertText('continued')
       const smartEnterText = await readEditorClipboard(app)
       expect(smartEnterText).toContain(
-        'void solve() {\n        // note\n        // continued'
+        'void solve() {\n        // note\n        // continued\n}'
       )
 
       await input.click({ force: true })

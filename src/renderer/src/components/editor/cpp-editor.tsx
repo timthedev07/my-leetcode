@@ -183,26 +183,36 @@ export const CppEditor = forwardRef<CppEditorHandle, CppEditorProps>(function Cp
       const model = editor.getModel()
       if (!position || !model || (selection && !selection.isEmpty())) return
 
+      const lineContent = model.getLineContent(position.lineNumber)
+      const nextLineContent =
+        position.lineNumber < model.getLineCount()
+          ? model.getLineContent(position.lineNumber + 1)
+          : ''
       const insertion = createSmartEnterInsertion(
-        model.getLineContent(position.lineNumber),
+        lineContent,
         position.column,
         indentWidthRef.current,
-        model.getEOL()
+        model.getEOL(),
+        nextLineContent
       )
       if (!insertion) return
 
       keyboardEvent.preventDefault()
+      editor.pushUndoStop()
       editor.executeEdits('leetcode-desktop.smart-enter', [
         {
           range: new monaco.Range(
             position.lineNumber,
             position.column,
             position.lineNumber,
-            position.column
+            insertion.replaceTrailingCloseBrace
+              ? model.getLineMaxColumn(position.lineNumber)
+              : position.column
           ),
           text: insertion.text
         }
       ])
+      editor.pushUndoStop()
       editor.setPosition({
         lineNumber: position.lineNumber + 1,
         column: insertion.cursorColumn
