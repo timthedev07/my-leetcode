@@ -1,6 +1,6 @@
 {
   "name": "leetcode-desktop",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "description": "A focused LeetCode desktop client with a C++ editor and explicit GitHub synchronisation.",
   "author": "Tim",
@@ -17,6 +17,7 @@
     "build": "yarn typecheck && electron-vite build",
     "package": "yarn install:browser && yarn build && electron-builder --mac --arm64 -c.mac.identity=null",
     "package:dir": "yarn install:browser && yarn build && electron-builder --mac --arm64 --dir -c.mac.identity=null",
+    "release": "node scripts/check-release-env.mjs && yarn install:browser && yarn build && electron-builder --mac --arm64 --publish always",
     "install:browser": "node scripts/install-playwright-chromium.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "lint": "eslint .",
@@ -40,6 +41,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
+    "electron-updater": "6.8.11",
     "graphql": "^16.12.0",
     "graphql-request": "^7.4.0",
     "lucide-react": "^0.548.0",

@@ -67,6 +67,7 @@ import { registerValidatedHandler } from './security/ipc'
 import { registerValidatedEvent } from './security/validated-event'
 import { createMainWindow } from './window'
 import { configureDevelopmentLogging } from './development-log'
+import { ApplicationUpdater, installApplicationMenu } from './updates'
 
 app.setName('LeetCode Desktop')
 
@@ -85,6 +86,10 @@ app.whenReady().then(() => {
   if (!hasSingleInstanceLock) return
   installContentSecurityPolicy()
   configureDevelopmentLogging(app.getPath('userData'))
+  const updater = new ApplicationUpdater()
+  installApplicationMenu(() => {
+    void updater.checkForUpdates(true)
+  })
   process.env.PLAYWRIGHT_BROWSERS_PATH =
     process.env.PLAYWRIGHT_BROWSERS_PATH ||
     (app.isPackaged
@@ -553,6 +558,7 @@ app.whenReady().then(() => {
   )
 
   createMainWindow()
+  updater.startScheduledChecks()
   if (attempts.getSetting('leetcode.profileInitialized') === '1') {
     void auth.restoreSession().catch(() => {
       // The actionable status is emitted by the auth service.
@@ -566,6 +572,7 @@ app.whenReady().then(() => {
     event.preventDefault()
     if (shutdownStarted) return
     shutdownStarted = true
+    updater.stopScheduledChecks()
     clearInterval(retentionTimer)
 
     const windows = BrowserWindow.getAllWindows()
@@ -588,9 +595,14 @@ app.whenReady().then(() => {
         console.error(`Application shutdown cleanup failed: ${error instanceof Error ? error.name : 'UnknownError'}`)
       })
       .finally(() => {
+        const installUpdate = updater.consumeRestartRequest()
         attempts.close()
         shutdownComplete = true
-        app.exit(0)
+        if (installUpdate) {
+          updater.quitAndInstall()
+        } else {
+          app.quit()
+        }
       })
   })
 

@@ -17,6 +17,7 @@ Implemented:
 - Authenticated C++ Run, Submit, polling, submission history, source preview and statistics.
 - GitHub device authorisation, encrypted token storage and repository/branch verification.
 - GitHub sync from the latest server-recorded Accepted C++ submission only.
+- Automatic GitHub update checks with explicit download and restart prompts.
 - Bundled documentation, keyboard navigation, accessible Radix dialogs, tests and Electron packaging.
 
 Live-account gates:
@@ -59,9 +60,12 @@ yarn build
 yarn test:e2e
 yarn package:dir
 yarn package
+yarn release
 ```
 
 `yarn package` creates an arm64 DMG and ZIP in `release/`. Unsigned local builds are suitable for testing only.
+`yarn release` publishes signed, notarised update metadata and installers to GitHub. See
+`docs/updates.md` for the required credentials and release sequence.
 
 ### Development diagnostics
 

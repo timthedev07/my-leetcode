@@ -1,5 +1,6 @@
 appId: com.timthedev.leetcodedesktop
 productName: LeetCode Desktop
+artifactName: ${name}-${version}-${arch}.${ext}
 directories:
   output: release
 files:
@@ -16,6 +17,11 @@ extraResources:
     filter:
       - '**/*'
 npmRebuild: true
+publish:
+  provider: github
+  owner: timthedev07
+  repo: my-leetcode
+  releaseType: release
 mac:
   category: public.app-category.developer-tools
   icon: build/icon.png
