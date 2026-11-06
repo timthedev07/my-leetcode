@@ -68,6 +68,10 @@ test.describe('editor workflows', () => {
       await app.page.keyboard.press('o')
       await expect(app.page.locator('.vim-statusbar')).toContainText('INSERT')
       await app.page.keyboard.insertText('// opened line')
+      const openedLineText = await readEditorClipboard(app)
+      expect(openedLineText).toMatch(
+        /^class Solution \{\n[ \t]*\/\/ opened line/m
+      )
       await app.page.keyboard.press('Escape')
       await expect(app.page.locator('.vim-statusbar')).toContainText('NORMAL')
       await expect(app.page.locator('.monaco-editor .view-lines').first()).toContainText('// opened line')
