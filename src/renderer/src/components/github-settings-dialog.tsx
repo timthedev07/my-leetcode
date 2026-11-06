@@ -4,6 +4,7 @@ import {
   BookOpen,
   CircleAlert,
   Copy,
+  ExternalLink,
   Github,
   Loader2,
   LogOut,
@@ -40,6 +41,7 @@ export function GitHubSettingsDialog({
   const auth = useGitHubAuth()
   const [clientId, setClientId] = useState('')
   const [deviceCode, setDeviceCode] = useState<string | null>(null)
+  const [verificationUri, setVerificationUri] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [repository, setRepository] = useState('')
@@ -121,15 +123,21 @@ export function GitHubSettingsDialog({
       setPending(true)
       setError(null)
       setDeviceCode(null)
+      setVerificationUri(null)
     },
     onSuccess: (authorisation) => {
       setDeviceCode(authorisation.userCode)
+      setVerificationUri(authorisation.verificationUri)
       queryClient.setQueryData(['github-auth-status'], {
         state: 'pending',
         username: null,
         avatarUrl: null
       })
       void (async () => {
+        const openResult = await window.desktop.openExternal(authorisation.verificationUri)
+        if (!openResult.ok) {
+          setError(`GitHub could not be opened. ${openResult.error.message}`)
+        }
         const result = await window.desktop.waitForGitHubAuth()
         if (!result.ok) {
           setError(result.error.message)
@@ -156,6 +164,7 @@ export function GitHubSettingsDialog({
     onSettled: () => {
       setPending(false)
       setDeviceCode(null)
+      setVerificationUri(null)
       queryClient.setQueryData(['github-auth-status'], {
         state: 'disconnected',
         username: null,
@@ -206,6 +215,14 @@ export function GitHubSettingsDialog({
       return
     }
     toast.success('Device code copied.')
+  }
+
+  async function openGitHubVerification(): Promise<void> {
+    if (!verificationUri) return
+    const result = await window.desktop.openExternal(verificationUri)
+    if (!result.ok) {
+      toast.error(result.error.message)
+    }
   }
 
   return (
@@ -312,6 +329,14 @@ export function GitHubSettingsDialog({
               <p className="text-xs text-muted">Enter this code on GitHub</p>
               <p className="mt-1 font-mono text-lg tracking-[0.14em] text-accent">{deviceCode}</p>
               <div className="mt-2 flex gap-2">
+                <Button
+                  size="sm"
+                  onClick={() => void openGitHubVerification()}
+                  disabled={!verificationUri}
+                >
+                  <ExternalLink className="size-3.5" aria-hidden="true" />
+                  Open GitHub
+                </Button>
                 <Button
                   variant="outline"
                   size="sm"
